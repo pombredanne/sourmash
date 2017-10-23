@@ -310,35 +310,50 @@ def compare(args):
 
     # load in the various signatures
     siglist = []
+    ksizes = set()
+    moltypes = set()
     for filename in args.signatures:
         notify('loading {}', filename, end='\r')
-        loaded = sig.load_signatures(filename, select_ksize=args.ksize,
+        loaded = sig.load_signatures(filename, ksize=args.ksize,
                                      select_moltype=moltype)
         loaded = list(loaded)
         if not loaded:
             notify('\nwarning: no signatures loaded at given ksize/molecule type from {}', filename)
         siglist.extend(loaded)
 
-    notify(' '*79, end='\r')
-    notify('loaded {} signatures total.'.format(len(siglist)))
+        # track ksizes/moltypes
+        for s in loaded:
+            ksizes.add(s.minhash.ksize)
+            moltypes.add(sourmash_args.get_moltype(s))
+
+        # error out while loading if we have more than one ksize/moltype
+        if len(ksizes) > 1 or len(moltypes) > 1:
+            break
 
     # check ksizes and type
-    ksizes = set([s.minhash.ksize for s in siglist])
     if len(ksizes) > 1:
         error('multiple k-mer sizes loaded; please specify one with -k.')
         ksizes = sorted(ksizes)
         error('(saw k-mer sizes {})'.format(', '.join(map(str, ksizes))))
         sys.exit(-1)
 
-    moltypes = set([sourmash_args.get_moltype(x) for x in siglist])
     if len(moltypes) > 1:
         error('multiple molecule types loaded; please specify --dna, --protein')
         sys.exit(-1)
+
+    notify(' '*79, end='\r')
+    notify('loaded {} signatures total.'.format(len(siglist)))
 
     # check to make sure they're potentially compatible - either using
     # max_hash/scaled, or not.
     scaled_sigs = [s.minhash.max_hash for s in siglist]
     is_scaled = all(scaled_sigs)
+    is_scaled_2 = any(scaled_sigs)
+
+    # complain if it's not all one or the other
+    if is_scaled != is_scaled_2:
+        error('cannot mix scaled signatures with bounded signatures')
+        sys.exit(-1)
 
     # if using --scaled, downsample appropriately
     if is_scaled:
@@ -361,7 +376,11 @@ def compare(args):
     labeltext = []
     for i, E in enumerate(siglist):
         for j, E2 in enumerate(siglist):
-            D[i][j] = E.similarity(E2, args.ignore_abundance)
+            if i < j:
+                continue
+            similarity = E.similarity(E2, args.ignore_abundance)
+            D[i][j] = similarity
+            D[j][i] = similarity
 
         if len(siglist) < 30:
             # for small matrices, pretty-print some output
@@ -410,13 +429,20 @@ def plot(args):
     # set up cmd line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('distances', help="output from 'sourmash compare'")
-    parser.add_argument('--pdf', action='store_true')
-    parser.add_argument('--labels', action='store_true')
-    parser.add_argument('--indices', action='store_false')
+    parser.add_argument('--pdf', action='store_true',
+                        help='output PDF, not PNG.')
+    parser.add_argument('--labels', action='store_true',
+                        help='show sample labels on dendrogram/matrix')
+    parser.add_argument('--indices', action='store_false',
+                        help='show sample indices but not labels')
     parser.add_argument('--vmax', default=1.0, type=float,
-                        help='(default: %(default)f)')
+                        help='upper limit of heatmap scale; (default: %(default)f)')
     parser.add_argument('--vmin', default=0.0, type=float,
-                        help='(default: %(default)f)')
+                        help='lower limit of heatmap scale; (default: %(default)f)')
+    parser.add_argument("--subsample", type=int,
+                        help="randomly downsample to this many samples, max.")
+    parser.add_argument("--subsample-seed", type=int, default=1,
+                        help="random seed for --subsample; default=1")
     args = parser.parse_args(args)
 
     # load files
@@ -445,7 +471,20 @@ def plot(args):
     ax1.set_xticks([])
     ax1.set_yticks([])
 
-    Y = sch.linkage(D, method='single') # cluster!
+    # subsample?
+    if args.subsample:
+        numpy.random.seed(args.subsample_seed)
+
+        sample_idx = list(range(len(labeltext)))
+        numpy.random.shuffle(sample_idx)
+        sample_idx = sample_idx[:args.subsample]
+
+        np_idx = numpy.array(sample_idx)
+        D = D[numpy.ix_(np_idx, np_idx)]
+        labeltext = [ labeltext[idx] for idx in sample_idx ]
+
+    ### do clustering
+    Y = sch.linkage(D, method='single')
     Z1 = sch.dendrogram(Y, orientation='right', labels=labeltext)
     fig.savefig(dendrogram_out)
     notify('wrote dendrogram to: {}', dendrogram_out)
@@ -508,7 +547,7 @@ def dump(args):
 
     for filename in args.filenames:
         notify('loading {}', filename)
-        siglist = sig.load_signatures(filename, select_ksize=args.ksize)
+        siglist = sig.load_signatures(filename, ksize=args.ksize)
         siglist = list(siglist)
         assert len(siglist) == 1
 
@@ -585,7 +624,7 @@ def index(args):
     ksizes = set()
     moltypes = set()
     for f in inp_files:
-        siglist = sig.load_signatures(f, select_ksize=args.ksize,
+        siglist = sig.load_signatures(f, ksize=args.ksize,
                                       select_moltype=moltype)
 
         # load all matching signatures in this file
@@ -647,7 +686,7 @@ def search(args):
 
     # set up the query.
     query = sourmash_args.load_query_signature(args.query,
-                                               select_ksize=args.ksize,
+                                               ksize=args.ksize,
                                                select_moltype=moltype)
     query_moltype = sourmash_args.get_moltype(query)
     query_ksize = query.minhash.ksize
@@ -859,7 +898,7 @@ def gather(args):
 
     # load the query signature & figure out all the things
     query = sourmash_args.load_query_signature(args.query,
-                                               select_ksize=args.ksize,
+                                               ksize=args.ksize,
                                                select_moltype=moltype)
     query_moltype = sourmash_args.get_moltype(query)
     query_ksize = query.minhash.ksize

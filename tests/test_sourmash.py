@@ -588,6 +588,33 @@ def test_do_sourmash_check_knowngood_protein_comparisons():
         assert sig2_trans.similarity(good_trans) == 1.0
 
 
+def test_do_basic_compare():
+    import numpy
+    with utils.TempDirectory() as location:
+        testsigs = utils.get_test_data('genome-s1*.sig')
+        testsigs = glob.glob(testsigs)
+
+        args = ['compare', '-o', 'cmp', '-k', '21', '--dna'] + testsigs
+        status, out, err = utils.runscript('sourmash', args,
+                                           in_directory=location)
+
+        cmp_outfile = os.path.join(location, 'cmp')
+        assert os.path.exists(cmp_outfile)
+        cmp_out = numpy.load(cmp_outfile)
+
+        sigs = []
+        for fn in testsigs:
+            sigs.append(sourmash_lib.load_one_signature(fn, ksize=21,
+                                                        select_moltype='dna'))
+
+        cmp_calc = numpy.zeros([len(sigs), len(sigs)])
+        for i, si in enumerate(sigs):
+            for j, sj in enumerate(sigs):
+                cmp_calc[i][j] = si.similarity(sj)
+
+        assert (cmp_out == cmp_calc).all()
+
+
 def test_do_compare_quiet():
     with utils.TempDirectory() as location:
         testdata1 = utils.get_test_data('short.fa')
@@ -763,6 +790,60 @@ def test_do_plot_comparison_3():
 
         assert os.path.exists(os.path.join(location, "cmp.dendro.png"))
         assert os.path.exists(os.path.join(location, "cmp.matrix.png"))
+
+
+def test_plot_subsample_1():
+    with utils.TempDirectory() as location:
+        testdata1 = utils.get_test_data('genome-s10.fa.gz.sig')
+        testdata2 = utils.get_test_data('genome-s11.fa.gz.sig')
+        testdata3 = utils.get_test_data('genome-s12.fa.gz.sig')
+        testdata4 = utils.get_test_data('genome-s10+s11.sig')
+        inp_sigs = [testdata1, testdata2, testdata3, testdata4]
+
+        status, out, err = utils.runscript('sourmash',
+                                           ['compare'] + inp_sigs + \
+                                           ['-o', 'cmp', '-k', '21', '--dna'],
+                                           in_directory=location)
+
+        status, out, err = utils.runscript('sourmash',
+                                           ['plot', 'cmp',
+                                            '--subsample', '3'],
+                                           in_directory=location)
+
+        print(out)
+
+        expected = """\
+0\ts10+s11
+1\tgenome-s12.fa.gz
+2\tgenome-s10.fa.gz"""
+        assert expected in out
+
+
+def test_plot_subsample_2():
+    with utils.TempDirectory() as location:
+        testdata1 = utils.get_test_data('genome-s10.fa.gz.sig')
+        testdata2 = utils.get_test_data('genome-s11.fa.gz.sig')
+        testdata3 = utils.get_test_data('genome-s12.fa.gz.sig')
+        testdata4 = utils.get_test_data('genome-s10+s11.sig')
+        inp_sigs = [testdata1, testdata2, testdata3, testdata4]
+
+        status, out, err = utils.runscript('sourmash',
+                                           ['compare'] + inp_sigs + \
+                                           ['-o', 'cmp', '-k', '21', '--dna'],
+                                           in_directory=location)
+
+        status, out, err = utils.runscript('sourmash',
+                                           ['plot', 'cmp',
+                                            '--subsample', '3',
+                                            '--subsample-seed=2'],
+                                           in_directory=location)
+
+        print(out)
+        expected = """\
+0\tgenome-s12.fa.gz
+1\ts10+s11
+2\tgenome-s11.fa.gz"""
+        assert expected in out
 
 
 def test_search_sig_does_not_exist():

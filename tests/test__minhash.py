@@ -36,6 +36,7 @@
 from __future__ import print_function
 from __future__ import absolute_import, unicode_literals
 
+import math
 import pickle
 
 import pytest
@@ -43,7 +44,8 @@ import pytest
 from sourmash_lib._minhash import (MinHash, hash_murmur, dotproduct,
                                    get_scaled_for_max_hash,
                                    get_max_hash_for_scaled)
-import math
+from . import sourmash_tst_utils as utils
+from sourmash_lib import signature
 
 # add:
 # * get default params from Python
@@ -166,30 +168,27 @@ def test_max_hash_and_scaled_error(track_abundance):
                      scaled=5)
 
 
-def test_max_hash_with_limit(track_abundance):
-    # test behavior with max_hash and a limit (not sure sensible use case...)
-    mh = MinHash(2, 4, track_abundance=track_abundance, max_hash=35)
+def test_max_hash_cannot_limit(track_abundance):
+    # make sure you can't set both max_n and max_hash.
+    with pytest.raises(ValueError):
+        mh = MinHash(2, 4, track_abundance=track_abundance, max_hash=35)
 
-    mh.add_hash(40)
-    assert mh.get_mins() == []
 
-    mh.add_hash(36)
-    assert mh.get_mins() == []
-
-    mh.add_hash(20)
-    mh.add_hash(30)
-    assert mh.get_mins() == [20, 30]
-
-    mh.add_hash(10)
-    assert mh.get_mins() == [10, 20]
+def test_scaled(track_abundance):
+    # make sure you can't set both max_n and scaled.
+    with pytest.raises(ValueError):
+        mh = MinHash(2, 4, track_abundance=track_abundance, scaled=2)
 
 
 def test_basic_dna_bad(track_abundance):
     # test behavior on bad DNA
     mh = MinHash(1, 4, track_abundance=track_abundance)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as e:
         mh.add_sequence('ATGR')
+    print(e)
+
+    assert 'invalid DNA character in input: R' in str(e)
 
 
 def test_basic_dna_bad_2(track_abundance):
@@ -373,8 +372,8 @@ def test_mh_count_common_diff_protein(track_abundance):
 
 
 def test_mh_count_common_diff_maxhash(track_abundance):
-    a = MinHash(20, 5, False, track_abundance=track_abundance, max_hash=1)
-    b = MinHash(20, 5, True, track_abundance=track_abundance, max_hash=2)
+    a = MinHash(0, 5, False, track_abundance=track_abundance, max_hash=1)
+    b = MinHash(0, 5, True, track_abundance=track_abundance, max_hash=2)
 
     with pytest.raises(ValueError):
         a.count_common(b)
@@ -593,8 +592,8 @@ def test_mh_compare_diff_seed(track_abundance):
 
 
 def test_mh_compare_diff_max_hash(track_abundance):
-    a = MinHash(20, 5, track_abundance=track_abundance, max_hash=5)
-    b = MinHash(20, 5, track_abundance=track_abundance, max_hash=10)
+    a = MinHash(0, 5, track_abundance=track_abundance, max_hash=5)
+    b = MinHash(0, 5, track_abundance=track_abundance, max_hash=10)
 
     with pytest.raises(ValueError):
         a.compare(b)
@@ -617,8 +616,8 @@ def test_mh_concat_diff_ksize(track_abundance):
 
 
 def test_mh_concat_diff_max_hash(track_abundance):
-    a = MinHash(20, 5, track_abundance=track_abundance, max_hash=5)
-    b = MinHash(20, 5, track_abundance=track_abundance, max_hash=10)
+    a = MinHash(0, 5, track_abundance=track_abundance, max_hash=5)
+    b = MinHash(0, 5, track_abundance=track_abundance, max_hash=10)
 
     with pytest.raises(ValueError):
         a += b
@@ -753,7 +752,7 @@ def test_set_abundance():
 
 def test_reviving_minhash():
     # simulate reading a MinHash from disk
-    mh = MinHash(4294967295, 21, max_hash=184467440737095520, seed=42,
+    mh = MinHash(0, 21, max_hash=184467440737095520, seed=42,
                  track_abundance=False)
     mins = (28945103950853965, 74690756200987412, 82962372765557409,
             93503551367950366, 106923350319729608, 135116761470196737,
@@ -824,7 +823,7 @@ def test_mh_copy_and_clear(track_abundance):
 
 def test_mh_copy_and_clear_with_max_hash(track_abundance):
     # test basic creation of new, empty MinHash w/max_hash param set
-    a = MinHash(20, 10, track_abundance=track_abundance, max_hash=20)
+    a = MinHash(0, 10, track_abundance=track_abundance, max_hash=20)
     for i in range(0, 40, 2):
         a.add_hash(i)
 
@@ -842,7 +841,7 @@ def test_mh_copy_and_clear_with_max_hash(track_abundance):
 
 def test_scaled_property(track_abundance):
     scaled = 10000
-    a = MinHash(20, 10, track_abundance=track_abundance,
+    a = MinHash(0, 10, track_abundance=track_abundance,
                 max_hash=round(2**64 / scaled))
     assert a.scaled == scaled
 
@@ -861,7 +860,7 @@ def test_mh_subtract(track_abundance):
 
 
 def test_pickle_max_hash(track_abundance):
-    a = MinHash(20, 10, track_abundance=track_abundance, max_hash=20)
+    a = MinHash(0, 10, track_abundance=track_abundance, max_hash=20)
     for i in range(0, 40, 2):
         a.add_hash(i)
 
@@ -880,7 +879,7 @@ def test_pickle_max_hash(track_abundance):
 
 
 def test_pickle_scaled(track_abundance):
-    a = MinHash(20, 10, track_abundance=track_abundance, scaled=922337203685477632)
+    a = MinHash(0, 10, track_abundance=track_abundance, scaled=922337203685477632)
     for i in range(0, 40, 2):
         a.add_hash(i)
 
@@ -896,3 +895,90 @@ def test_pickle_scaled(track_abundance):
     assert len(b.get_mins()) == 11
     assert a.scaled == b.scaled
     assert b.scaled != 0
+
+
+def test_minhash_abund_add():
+    # this targets part of bug #319, a segfault caused by invalidation of
+    # std::vector iterators upon vector resizing - in this case, there
+    # was also a bug in inserting into the middle of mins when scaled was set.
+
+    a = MinHash(0, 10, track_abundance=True, max_hash=5000)
+
+    n = 0
+    for i in range(10, 0, -1):
+        a.add_hash(i)
+        n += 1
+        assert len(a.get_mins()) == n
+        print(len(a.get_mins()))
+
+
+def test_minhash_abund_capacity_increase():
+    # this targets bug #319, a segfault caused by invalidation of
+    # std::vector iterators upon vector resizing.
+
+    # this should set capacity to 1000 - see KmerMinHash constructor call
+    # to 'reserve' when n > 0 for specific parameter.
+    a = MinHash(0, 10, track_abundance=True, max_hash=5000)
+
+    # 1001 is dependent on the value passed to reserve (currently 1000).
+    for i in range(1001, 0, -1):
+        a.add_hash(i)
+
+
+def test_minhash_abund_merge_flat():
+    # this targets a segfault caused by trying to compute similarity
+    # of a signature with abundance and a signature without abundance.
+    # the correct behavior for now is to calculate simple Jaccard,
+    # i.e. 'flatten' both of them.
+    a = MinHash(0, 10, track_abundance=True, max_hash=5000)
+    b = MinHash(0, 10, max_hash=5000)
+
+    for i in range(0, 10, 2):
+        a.add_hash(i)
+
+    for j in range(0, 10, 3):
+        b.add_hash(i)
+
+    # these crashed, previously.
+    assert a.similarity(b) == 0.2
+    assert b.similarity(a) == 0.2
+
+
+def test_minhash_abund_merge_flat_2():
+    # this targets a segfault caused by trying to merge
+    # a signature with abundance and a signature without abundance.
+
+    a = MinHash(0, 10, track_abundance=True, max_hash=5000)
+    b = MinHash(0, 10, max_hash=5000)
+
+    for i in range(0, 10, 2):
+        a.add_hash(i)
+
+    for j in range(0, 10, 3):
+        b.add_hash(i)
+
+    a.merge(b)
+
+
+def test_distance_matrix(track_abundance):
+    import numpy
+
+    siglist = [next(signature.load_signatures(utils.get_test_data(f)))
+               for f in utils.SIG_FILES]
+
+    D1 = numpy.zeros([len(siglist), len(siglist)])
+    D2 = numpy.zeros([len(siglist), len(siglist)])
+
+    for i, E in enumerate(siglist):
+        for j, E2 in enumerate(siglist):
+            if i < j:
+                continue
+            similarity = E.similarity(E2, track_abundance)
+            D2[i][j] = similarity
+            D2[j][i] = similarity
+
+    for i, E in enumerate(siglist):
+        for j, E2 in enumerate(siglist):
+            D1[i][j] = E.similarity(E2, track_abundance)
+
+    assert numpy.array_equal(D1, D2)

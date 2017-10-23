@@ -7,6 +7,33 @@ from sourmash_lib.signature import SourmashSignature, save_signatures, \
     load_signatures, load_one_signature
 
 
+def test_hashable(track_abundance):
+    # check: can we use signatures as keys in dictionaries and sets?
+    e = sourmash_lib.MinHash(n=1, ksize=20, track_abundance=track_abundance)
+    e.add("AT" * 10)
+
+    sig = SourmashSignature('', e)
+
+    x = set()
+    x.add(sig)
+
+
+def test_str(track_abundance):
+    # signatures should be printable
+    e = sourmash_lib.MinHash(n=1, ksize=20, track_abundance=track_abundance)
+    e.add("AT" * 10)
+
+    sig = SourmashSignature('', e)
+
+    print(sig)
+    assert str(sig) == 'SourmashSignature(59502a74)'
+    assert repr(sig) == 'SourmashSignature(59502a74)'
+
+    sig.d['name'] = 'fizbar'
+    assert str(sig) == 'SourmashSignature(\'fizbar\', 59502a74)'
+    assert repr(sig) == 'SourmashSignature(\'fizbar\', 59502a74)'
+
+
 def test_roundtrip(track_abundance):
     e = sourmash_lib.MinHash(n=1, ksize=20, track_abundance=track_abundance)
     e.add("AT" * 10)
@@ -20,12 +47,12 @@ def test_roundtrip(track_abundance):
     assert sig2.similarity(sig) == 1.0
 
 
-def test_load_signature_select_ksize_nonint(track_abundance):
+def test_load_signature_ksize_nonint(track_abundance):
     e = sourmash_lib.MinHash(n=1, ksize=20, track_abundance=track_abundance)
     e.add("AT" * 10)
     sig = SourmashSignature('titus@idyll.org', e)
     s = save_signatures([sig])
-    siglist = list(load_signatures(s, select_ksize='20'))
+    siglist = list(load_signatures(s, ksize='20'))
     sig2 = siglist[0]
     e2 = sig2.minhash
 
@@ -48,7 +75,7 @@ def test_roundtrip_empty(track_abundance):
 
 
 def test_roundtrip_max_hash(track_abundance):
-    e = sourmash_lib.MinHash(n=1, ksize=20, track_abundance=track_abundance,
+    e = sourmash_lib.MinHash(n=0, ksize=20, track_abundance=track_abundance,
                              max_hash=10)
     e.add_hash(5)
     sig = SourmashSignature('titus@idyll.org', e)
