@@ -3,11 +3,9 @@
 Save and load MinHash sketches in a JSON format, along with some metadata.
 """
 from __future__ import print_function
-import sys
 import hashlib
-import sourmash_lib
 from . import signature_json
-from .logging import notify, error
+from .logging import error
 
 import io
 import gzip
@@ -28,6 +26,7 @@ class SourmashSignature(object):
             self.d['filename'] = filename
 
         self.minhash = minhash
+        self.d['license'] = 'CC0'
 
     def __hash__(self):
         return hash(self.md5sum())
@@ -173,7 +172,7 @@ def _guess_open(filename):
 
 
 def load_signatures(data, ksize=None, select_moltype=None,
-                    ignore_md5sum=False):
+                    ignore_md5sum=False, do_raise=False):
     """Load a JSON string with signatures into classes.
 
     Returns list of SourmashSignature objects.
@@ -188,12 +187,25 @@ def load_signatures(data, ksize=None, select_moltype=None,
 
     is_fp = False
     if hasattr(data, 'find') and data.find('sourmash_signature') == -1:   # filename
+        done = False
         try:                                  # is it a file handle?
             data.read
             is_fp = True
-        except AttributeError:                # no - treat it like a filename.
-            data = _guess_open(data)
-            is_fp = True
+            done = True
+        except AttributeError:
+            pass
+
+        # not a file handle - treat it like a filename.
+        if not done:
+            try:
+                data = _guess_open(data)
+                is_fp = True
+                done = True
+            except OSError as excinfo:
+                error(str(excinfo))
+                if do_raise:
+                    raise
+                return
 
     try:
         # JSON format
@@ -206,6 +218,8 @@ def load_signatures(data, ksize=None, select_moltype=None,
     except Exception as e:
         error("Error in parsing signature; quitting.")
         error("Exception: {}", str(e))
+        if do_raise:
+            raise
     finally:
         if is_fp:
             data.close()
@@ -223,7 +237,7 @@ def load_one_signature(data, ksize=None, select_moltype=None,
         raise ValueError("no signatures to load")
 
     try:
-        next_sig = next(sigiter)
+        next(sigiter)
     except StopIteration:
         return first_sig
 
