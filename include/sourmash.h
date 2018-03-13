@@ -100,6 +100,8 @@ uint64_t kmerminhash_seed(KmerMinHash *ptr);
 
 bool kmerminhash_track_abundance(KmerMinHash *ptr);
 
+void kmerminhash_disable_abundance(KmerMinHash *ptr);
+
 bool signature_eq(Signature *ptr, Signature *other);
 
 KmerMinHash *signature_first_mh(Signature *ptr);

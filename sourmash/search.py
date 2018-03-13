@@ -185,7 +185,7 @@ def gather_databases(query, databases, threshold_bp, ignore_abundance):
 
 
     # construct a new query that doesn't have the max_hash attribute set.
-    query = build_new_query([], orig_query)
+    query = build_new_query([], query)
 
     cmp_scaled = 0
     remainder = set()
@@ -264,7 +264,7 @@ def gather_databases(query, databases, threshold_bp, ignore_abundance):
                               leaf=best_leaf)
 
         # construct a new query, minus the previous one.
-        query = build_new_query(found_mins, orig_query, cmp_scaled)
+        query = build_new_query(found_mins, query, cmp_scaled)
         query_mins -= set(found_mins)
 
         weighted_missed = sum((orig_abunds[k] for k in query_mins)) \

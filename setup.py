@@ -60,8 +60,11 @@ SETUP_METADATA = {
     "packages": find_packages(exclude=["tests", "benchmarks"]),
     "zip_safe": False,
     "platforms": "any",
-    "entry_points": {"console_scripts": ["sourmash = sourmash.__main__:main"]},
-    "install_requires": ["screed>=0.9", "ijson", "khmer>=2.1", "milksnake"],
+    "entry_points": {'console_scripts': [
+        'sourmash = sourmash.__main__:main'
+        ]
+    },
+    "install_requires": ["screed>=0.9", "khmer>=2.1", 'milksnake'],
     "setup_requires": [
         "setuptools>=38.6.0",
         "milksnake",

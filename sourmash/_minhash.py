@@ -92,8 +92,6 @@ class MinHash(RustObject):
         mins=None,
         scaled=0,
     ):
-        self.track_abundance = track_abundance
-
         if max_hash and scaled:
             raise ValueError("cannot set both max_hash and scaled")
         elif scaled:
@@ -250,6 +248,20 @@ class MinHash(RustObject):
     @property
     def max_hash(self):
         return self._methodcall(lib.kmerminhash_max_hash)
+
+    @property
+    def track_abundance(self):
+        return self._methodcall(lib.kmerminhash_track_abundance)
+
+    @track_abundance.setter
+    def track_abundance(self, b):
+        if b is False:
+            self._methodcall(lib.kmerminhash_disable_abundance)
+        elif len(self) > 0:
+            raise ValueError("Can't change abundance after elements were inserted")
+        else:
+            # TODO: create a new one with abundance set?
+            raise NotImplemented()
 
     def add_hash(self, h):
         return self._methodcall(lib.kmerminhash_add_hash, h)

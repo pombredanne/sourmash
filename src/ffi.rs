@@ -31,14 +31,14 @@ pub unsafe extern "C" fn kmerminhash_new(
     mx: u64,
     track_abundance: bool,
 ) -> *mut KmerMinHash {
-    mem::transmute(Box::new(KmerMinHash::new(
+      Box::into_raw(Box::new(KmerMinHash::new(
         n,
         k,
         prot,
         seed,
         mx,
         track_abundance,
-    )))
+      ))) as *mut KmerMinHash
 }
 
 #[no_mangle]
@@ -240,6 +240,15 @@ pub extern "C" fn kmerminhash_track_abundance(ptr: *mut KmerMinHash) -> bool {
         &mut *ptr
     };
     mh.abunds.is_some()
+}
+
+#[no_mangle]
+pub extern "C" fn kmerminhash_disable_abundance(ptr: *mut KmerMinHash) {
+    let mh = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    mh.abunds = None;
 }
 
 #[no_mangle]
@@ -494,8 +503,8 @@ unsafe fn signature_first_mh(ptr: *mut Signature) -> Result<*mut KmerMinHash> {
     if let Some(mh) = sig.signatures.get(0) {
         Ok(mem::transmute(Box::new(mh.clone())))
     } else {
-        // TODO: this is totally wrong
-        Ok(mem::transmute(Box::new(KmerMinHash::default())))
+        // TODO: need to select the correct one
+        unimplemented!()
     }
 }
 }

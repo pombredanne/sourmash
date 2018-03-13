@@ -409,14 +409,18 @@ impl KmerMinHash {
 
         if merged.len() < (self.num as usize) || (self.num as usize) == 0 {
             self.mins = merged;
-            self.abunds = Some(merged_abunds);
+            self.abunds = if merged_abunds.is_empty() {
+                None
+            } else {
+                Some(merged_abunds)
+            };
         } else {
-            self.mins = merged
-                .iter()
-                .map(|&x| x as u64)
-                .take(self.num as usize)
-                .collect();
-            self.abunds = Some(merged_abunds) // TODO: reduce this one too
+            self.mins = merged.into_iter().take(self.num as usize).collect();
+            self.abunds = if merged_abunds.is_empty() {
+                None
+            } else {
+                Some(merged_abunds.into_iter().take(self.num as usize).collect())
+            }
         }
         Ok(())
     }

@@ -119,8 +119,8 @@ def describe(args):
             with_abundance = 1
         md5 = sig.md5sum()
         name = sig.name()
-        filename = sig.d.get('filename', '')
-        license = sig.d['license']
+        filename = sig.filename
+        license = sig.license
 
         if w:
             w.writerow(locals())
@@ -266,10 +266,13 @@ def merge(args):
                     _flatten(mh)
 
             try:
+                sigobj_mh = sigobj.minhash
                 if not args.flatten:
                     _check_abundance_compatibility(first_sig, sigobj)
+                else:
+                    _flatten(sigobj_mh)
 
-                mh.merge(sigobj.minhash)
+                mh.merge(sigobj_mh)
             except:
                 error("ERROR when merging signature '{}' ({}) from file {}",
                       sigobj.name(), sigobj.md5sum()[:8], sigfile)
@@ -428,7 +431,7 @@ def rename(args):
                                            select_moltype=moltype)
 
         for sigobj in siglist:
-            sigobj.d['name'] = args.name
+            sigobj._name = args.name
             outlist.append(sigobj)
 
     if args.output:
