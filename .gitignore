@@ -17,5 +17,8 @@ _minhash.so
 .cache
 *.so
 .coverage
-sourmash_lib/_minhash.cpp
-sourmash/_minhash.cpp
+src/sourmash_lib/_minhash.cpp
+src/sourmash/_minhash.cpp
+.asv
+.eggs
+.tox

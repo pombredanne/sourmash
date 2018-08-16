@@ -6,7 +6,7 @@ import os
 
 # retrieve VERSION from sourmash/VERSION.
 thisdir = os.path.dirname(__file__)
-version_file = open(os.path.join(thisdir, 'sourmash', 'VERSION'))
+version_file = open(os.path.join(thisdir, 'src', 'sourmash', 'VERSION'))
 VERSION = version_file.read().strip()
 
 EXTRA_COMPILE_ARGS = ['-std=c++11', '-pedantic']
@@ -56,16 +56,18 @@ SETUP_METADATA = \
     "author": "C. Titus Brown",
     "author_email": "titus@idyll.org",
     "license": "BSD 3-clause",
-    "packages": find_packages(),
+    "packages": find_packages('src'),
+    "package_dir": {'': 'src'},
+    "zip_safe": False,
     "entry_points": {'console_scripts': [
         'sourmash = sourmash.__main__:main'
         ]
     },
     "ext_modules": [Extension("sourmash._minhash",
-                               sources=["sourmash/_minhash.pyx",
+                               sources=["src/sourmash/_minhash.pyx",
                                         "third-party/smhasher/MurmurHash3.cc"],
-                               depends=["sourmash/kmer_min_hash.hh"],
-                               include_dirs=["./sourmash",
+                               depends=["src/sourmash/kmer_min_hash.hh"],
+                               include_dirs=["./src/sourmash",
                                              "./third-party/smhasher/"],
                                language="c++",
                                extra_compile_args=EXTRA_COMPILE_ARGS,
@@ -79,9 +81,6 @@ SETUP_METADATA = \
         '10x': ['pathos', 'bamnostic>=0.9.2'],
         },
     "include_package_data": True,
-    "package_data": {
-        "sourmash": ['*.pxd']
-    },
     "classifiers": CLASSIFIERS
     }
 
