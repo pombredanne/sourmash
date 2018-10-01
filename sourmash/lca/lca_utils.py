@@ -15,6 +15,7 @@ except ImportError:
 import pprint
 
 from .._minhash import get_max_hash_for_scaled
+from ..index import Index
 from ..logging import notify, error
 
 # type to store an element in a taxonomic lineage
@@ -128,7 +129,7 @@ def find_lca(tree):
             return tuple(lineage), len(node)
 
 
-class LCA_Database(object):
+class LCA_Database(Index):
     """
     Wrapper class for taxonomic database.
 
@@ -231,6 +232,9 @@ class LCA_Database(object):
             save_d['signatures_to_lineage'] = self.signatures_to_lineage_id
             save_d['signatures_to_name'] = self.signatures_to_name
             json.dump(save_d, fp)
+
+    def find(self, search_fn, *args, **kwargs):
+        pass
 
     def downsample_scaled(self, scaled):
         """
