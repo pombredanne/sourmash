@@ -10,7 +10,7 @@ To try it out, do::
     graph1 = factory()
     # ... add stuff to graph1 ...
     leaf1 = Leaf("a", graph1)
-    root.add_node(leaf1)
+    root.insert(leaf1)
 
 For example, ::
 
@@ -26,7 +26,7 @@ For example, ::
         graph = factory()
         graph.consume_fasta(filename)
         leaf = Leaf(filename, graph)
-        root.add_node(leaf)
+        root.insert(leaf)
 
 then define a search function, ::
 
@@ -57,6 +57,7 @@ from random import randint, random
 import sys
 from tempfile import NamedTemporaryFile
 
+from deprecation import deprecated
 import khmer
 
 try:
@@ -137,7 +138,7 @@ class SBT(Index):
             self.next_node += 1
         return self.next_node
 
-    def add_node(self, node):
+    def insert(self, node):
         pos = self.new_node_pos(node)
 
         if pos == 0:  # empty tree; initialize w/node.
@@ -183,6 +184,10 @@ class SBT(Index):
             self._rebuild_node(p.pos)
             node.update(self.nodes[p.pos])
             p = self.parent(p.pos)
+
+    @deprecated(details="Use the insert method instead")
+    def add_node(self, node):
+        self.insert(node)
 
     def find(self, search_fn, *args, **kwargs):
         matches = []
