@@ -45,9 +45,7 @@ def _check_abundance_compatibility(sig1, sig2):
 
 def _flatten(mh):
     "turn off track_abundance on a MinHash object"
-    mh_params = list(mh.__getstate__())
-    mh_params[5] = False
-    mh.__setstate__(mh_params)
+    mh.track_abundance = False
     assert not mh.track_abundance
 
 

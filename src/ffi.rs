@@ -79,6 +79,35 @@ pub extern "C" fn kmerminhash_add_hash(ptr: *mut KmerMinHash, h: u64) {
 }
 
 #[no_mangle]
+pub extern "C" fn kmerminhash_remove_hash(ptr: *mut KmerMinHash, h: u64) {
+    let mh = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+
+    mh.remove_hash(h);
+}
+
+#[no_mangle]
+pub extern "C" fn kmerminhash_remove_many(
+    ptr: *mut KmerMinHash,
+    hashes_ptr: *const u64,
+    insize: usize,
+) {
+    let mh = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+
+    let hashes = unsafe {
+        assert!(!hashes_ptr.is_null());
+        slice::from_raw_parts(hashes_ptr as *mut u64, insize)
+    };
+
+    mh.remove_many(hashes);
+}
+
+#[no_mangle]
 pub extern "C" fn kmerminhash_add_word(ptr: *mut KmerMinHash, word: *const c_char) {
     let mh = unsafe {
         assert!(!ptr.is_null());
