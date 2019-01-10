@@ -9,6 +9,7 @@ from .logging import notify, error
 from . import signature as sig
 from .sbt import SBT
 from .sbtmh import SigLeaf
+from .lca import lca_utils
 
 DEFAULT_LOAD_K=31
 
@@ -21,11 +22,12 @@ def add_moltype_args(parser):
                         help='do not choose a protein signature')
     parser.set_defaults(protein=False)
 
-    parser.add_argument('--dna', dest='dna', default=None,
+    parser.add_argument('--dna', '--rna', dest='dna', default=None,
                         action='store_true',
-                        help='choose a DNA signature (default: True)')
-    parser.add_argument('--no-dna', dest='dna', action='store_false',
-                        help='do not choose a DNA signature')
+                        help='choose a nucleotide signature (default: True)')
+    parser.add_argument('--no-dna', '--no-rna', dest='dna',
+                        action='store_false',
+                        help='do not choose a nucleotide signature')
     parser.set_defaults(dna=None)
 
 
@@ -37,11 +39,12 @@ def add_construct_moltype_args(parser):
                         help='do not build protein signatures')
     parser.set_defaults(protein=False)
 
-    parser.add_argument('--dna', dest='dna', default=None,
+    parser.add_argument('--dna', '--rna', dest='dna', default=None,
                         action='store_true',
-                        help='build DNA signatures (default: True)')
-    parser.add_argument('--no-dna', dest='dna', action='store_false',
-                        help='do not build DNA signatures')
+                        help='build nucleotide signatures (default: True)')
+    parser.add_argument('--no-dna', '--no-rna', dest='dna',
+                        action='store_false',
+                        help='do not build nucleotide signatures')
     parser.set_defaults(dna=True)
 
 
@@ -64,7 +67,7 @@ def get_moltype(sig, require=False):
 def calculate_moltype(args, default=None):
     if args.protein:
         if args.dna is True:
-            error('cannot specify both --dna and --protein!')
+            error('cannot specify both --dna/--rna and --protein!')
             sys.exit(-1)
         args.dna = False
 
@@ -103,7 +106,7 @@ def load_query_signature(filename, ksize, select_moltype):
     if len(sl) != 1:
         error('When loading query from "{}"', filename)
         error('{} signatures matching ksize and molecule type;', len(sl))
-        error('need exactly one. Specify --ksize or --dna/--protein.')
+        error('need exactly one. Specify --ksize or --dna, --rna, or --protein.')
         sys.exit(-1)
 
     return sl[0]
@@ -189,6 +192,7 @@ def check_signatures_are_compatible(query, subject):
 
 
 def check_tree_is_compatible(treename, tree, query, is_similarity_query):
+    # get a minhash from the tree
     leaf = next(iter(tree.leaves()))
     tree_mh = leaf.data.minhash
 
@@ -221,7 +225,12 @@ def check_tree_is_compatible(treename, tree, query, is_similarity_query):
     return 1
 
 
-def load_sbts_and_sigs(filenames, query, is_similarity_query, traverse=False):
+def load_dbs_and_sigs(filenames, query, is_similarity_query, traverse=False):
+    """
+    Load one or more SBTs, LCAs, and/or signatures.
+
+    Check for compatibility with query.
+    """
     query_ksize = query.minhash.ksize
     query_moltype = get_moltype(query)
 
@@ -229,6 +238,8 @@ def load_sbts_and_sigs(filenames, query, is_similarity_query, traverse=False):
     n_databases = 0
     databases = []
     for sbt_or_sigfile in filenames:
+        notify('loading from {}...', sbt_or_sigfile, end='\r')
+        # are we collecting signatures from a directory/path?
         if traverse and os.path.isdir(sbt_or_sigfile):
             for sigfile in traverse_find_sigs([sbt_or_sigfile]):
                 try:
@@ -255,14 +266,33 @@ def load_sbts_and_sigs(filenames, query, is_similarity_query, traverse=False):
                                             is_similarity_query):
                 sys.exit(-1)
 
-            databases.append((tree, sbt_or_sigfile, True))
+            databases.append((tree, sbt_or_sigfile, 'SBT'))
             notify('loaded SBT {}', sbt_or_sigfile, end='\r')
             n_databases += 1
 
             # done! jump to beginning of main 'for' loop
             continue
         except (ValueError, EnvironmentError):
-            # not an SBT - try as a .sig
+            # not an SBT - try as an LCA
+            pass
+
+        # ok. try loading as an LCA.
+        try:
+            lca_db = lca_utils.LCA_Database()
+            lca_db.load(sbt_or_sigfile)
+
+            assert query_ksize == lca_db.ksize
+            query_scaled = query.minhash.scaled
+            assert query_scaled and query_scaled <= lca_db.scaled
+
+            notify('loaded LCA {}', sbt_or_sigfile, end='\r')
+            n_databases += 1
+
+            databases.append((lca_db, sbt_or_sigfile, 'LCA'))
+
+            continue
+        except (ValueError, TypeError, EnvironmentError):
+            # not an LCA database - try as a .sig
             pass
 
         # not a tree? try loading as a signature.
@@ -277,7 +307,7 @@ def load_sbts_and_sigs(filenames, query, is_similarity_query, traverse=False):
             siglist = filter_compatible_signatures(query, siglist, False)
             siglist = list(siglist)
 
-            databases.append((siglist, sbt_or_sigfile, False))
+            databases.append((siglist, sbt_or_sigfile, 'signature'))
             notify('loaded {} signatures from {}', len(siglist),
                    sbt_or_sigfile, end='\r')
             n_signatures += len(siglist)
