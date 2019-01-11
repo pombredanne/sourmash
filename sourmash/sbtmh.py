@@ -79,7 +79,7 @@ class SigLeaf(Leaf):
 
 ### Search functionality.
 
-def _max_jaccard_underneath_internal_node(node, hashes):
+def _max_jaccard_underneath_internal_node(node, query):
     """\
     calculate the maximum possibility similarity score below
     this node, based on the number of matches in 'hashes' at this node,
@@ -88,12 +88,11 @@ def _max_jaccard_underneath_internal_node(node, hashes):
     This should yield be an upper bound on the Jaccard similarity
     for any signature below this point.
     """
-    if len(hashes) == 0:
-        return 0.0
 
-    # count the maximum number of hash matches beneath this node
-    get = node.data.get
-    matches = sum(1 for value in hashes if get(value))
+    query_bf = _get_bf(node, query)
+
+    if len(query.minhash) == 0:
+        return 0.0
 
     # get the size of the smallest collection of hashes below this point
     min_n_below = node.metadata.get('min_n_below', -1)
@@ -101,33 +100,35 @@ def _max_jaccard_underneath_internal_node(node, hashes):
     if min_n_below == -1:
         raise Exception('cannot do similarity search on this SBT; need to rebuild.')
 
+    # count the maximum number of hash matches beneath this node
+    matches = query_bf.containment(node.data) * len(query.minhash)
+
     # max of numerator divided by min of denominator => max Jaccard
-    max_score = float(matches) / min_n_below
+    max_score = matches / min_n_below
 
     return max_score
 
 
-def search_minhashes(node, sig, threshold, results=None, downsample=True):
+def search_minhashes(node, query, threshold, results=None, downsample=True):
     """\
     Default tree search function, searching for best Jaccard similarity.
     """
-    mins = sig.minhash.get_mins()
     score = 0
 
     if isinstance(node, SigLeaf):
         try:
-            score = node.data.minhash.similarity(sig.minhash)
+            score = node.data.minhash.similarity(query.minhash)
         except Exception as e:
             if 'mismatch in max_hash' in str(e) and downsample:
-                xx = sig.minhash.downsample_max_hash(node.data.minhash)
-                yy = node.data.minhash.downsample_max_hash(sig.minhash)
+                xx = query.minhash.downsample_max_hash(node.data.minhash)
+                yy = node.data.minhash.downsample_max_hash(query.minhash)
 
                 score = yy.similarity(xx)
             else:
                 raise
 
     else:  # Node minhash comparison
-        score = _max_jaccard_underneath_internal_node(node, mins)
+        score = _max_jaccard_underneath_internal_node(node, query)
 
     if results is not None:
         results[node.name] = score
@@ -143,23 +144,22 @@ class SearchMinHashesFindBest(object):
         self.best_match = 0.
         self.downsample = downsample
 
-    def search(self, node, sig, threshold, results=None):
-        mins = sig.minhash.get_mins()
+    def search(self, node, query, threshold, results=None):
         score = 0
 
         if isinstance(node, SigLeaf):
             try:
-                score = node.data.minhash.similarity(sig.minhash)
+                score = node.data.minhash.similarity(query.minhash)
             except Exception as e:
                 if 'mismatch in max_hash' in str(e) and self.downsample:
-                    xx = sig.minhash.downsample_max_hash(node.data.minhash)
-                    yy = node.data.minhash.downsample_max_hash(sig.minhash)
+                    xx = query.minhash.downsample_max_hash(node.data.minhash)
+                    yy = node.data.minhash.downsample_max_hash(query.minhash)
 
                     score = yy.similarity(xx)
                 else:
                     raise
         else:  # internal object, not leaf.
-            score = _max_jaccard_underneath_internal_node(node, mins)
+            score = _max_jaccard_underneath_internal_node(node, query)
 
         if results is not None:
             results[node.name] = score
@@ -175,56 +175,64 @@ class SearchMinHashesFindBest(object):
         return 0
 
 
-def search_minhashes_containment(node, sig, threshold,
+def search_minhashes_containment(node, query, threshold,
                                  results=None, downsample=True):
-    mins = sig.minhash.get_mins()
-
     if isinstance(node, SigLeaf):
         try:
-            matches = node.data.minhash.count_common(sig.minhash)
+            matches = node.data.minhash.count_common(query.minhash)
         except Exception as e:
             if 'mismatch in max_hash' in str(e) and downsample:
-                xx = sig.minhash.downsample_max_hash(node.data.minhash)
-                yy = node.data.minhash.downsample_max_hash(sig.minhash)
+                xx = query.minhash.downsample_max_hash(node.data.minhash)
+                yy = node.data.minhash.downsample_max_hash(query.minhash)
 
                 matches = yy.count_common(xx)
             else:
                 raise
 
     else:  # Node or Leaf, Nodegraph by minhash comparison
-        get = node.data.get
-        matches = sum(1 for value in mins if get(value))
+        bf = _get_bf(node, query)
+        matches = bf.containment(node.data) * len(query.minhash)
 
     if results is not None:
-        results[node.name] = float(matches) / len(mins)
+        results[node.name] = float(matches) / len(query.minhash)
 
-    if len(mins) and float(matches) / len(mins) >= threshold:
+    if len(query.minhash) and float(matches) / len(query.minhash) >= threshold:
         return 1
     return 0
+
+
+def _get_bf(node, query):
+    try:
+        query_bf = query.bf
+    except AttributeError:
+        query_bf = node._factory()
+        for v in query.minhash.get_mins():
+            query_bf.count(v)
+        query.bf = query_bf
+
+    return query_bf
 
 
 class GatherMinHashesFindBestIgnoreMaxHash(object):
     def __init__(self, initial_best_match=0.0):
         self.best_match = initial_best_match
 
-    def search(self, node, sig, threshold, results=None):
-        mins = sig.minhash.get_mins()
-
+    def search(self, node, query, threshold, results=None):
         score = 0
-        if not len(mins):
+
+        if not len(query.minhash):
             return 0
 
         if isinstance(node, SigLeaf):
-            max_scaled = max(node.data.minhash.scaled, sig.minhash.scaled)
+            max_scaled = max(node.data.minhash.scaled, query.minhash.scaled)
 
             mh1 = node.data.minhash.downsample_scaled(max_scaled)
-            mh2 = sig.minhash.downsample_scaled(max_scaled)
+            mh2 = query.minhash.downsample_scaled(max_scaled)
             matches = mh1.count_common(mh2)
+            score = float(matches) / len(query.minhash)
         else:  # Nodegraph by minhash comparison
-            get = node.data.get
-            matches = sum(1 for value in mins if get(value))
-
-        score = float(matches) / len(mins)
+            bf = _get_bf(node, query)
+            score = bf.containment(node.data)
 
         # store results if we have passed in an appropriate dictionary
         if results is not None:
