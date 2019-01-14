@@ -59,7 +59,7 @@ def search_databases(query, databases, threshold, do_containment, best_only,
                 tree_query = SourmashSignature(resampled_query_mh)
 
             # now, search!
-            for leaf in tree.find(search_fn, tree_query, threshold):
+            for leaf in tree.find(search_fn, tree_query, threshold, strategy='bfs'):
                 similarity = query_match(leaf.data)
 
                 # tree search should always/only return matches above threshold
@@ -150,7 +150,7 @@ def gather_databases(query, databases, threshold_bp, ignore_abundance):
                 tree = obj
                 search_fn = GatherMinHashesFindBestIgnoreMaxHash(best_ctn_sofar).search
 
-                for leaf in tree.find(search_fn, query, best_ctn_sofar):
+                for leaf in tree.find(search_fn, query, best_ctn_sofar, strategy='best_first'):
                     leaf_e = leaf.data.minhash
                     similarity = query.minhash.containment_ignore_maxhash(leaf_e)
                     if similarity > 0.0:

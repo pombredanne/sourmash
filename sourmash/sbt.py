@@ -187,8 +187,10 @@ class SBT(object):
     def find(self, search_fn, *args, **kwargs):
         "Search the tree using `search_fn`."
 
-        # initialize search queue with top node of tree
+        strategy = kwargs.get('strategy', 'dfs')  # defaults search to dfs
+
         matches = []
+        # initialize search queue with top node of tree
         visited, queue = set(), [0]
 
         # while the queue is not empty, load each node and apply search
@@ -209,19 +211,43 @@ class SBT(object):
             if node_p not in visited:
                 visited.add(node_p)
 
-                # apply search fn. If return false, truncate search.
-                if search_fn(node_g, *args):
-
-                    # leaf node? it's a match!
-                    if isinstance(node_g, Leaf):
+                if strategy == 'best_first':
+                    # leaf node?
+                    if isinstance(node_g, Leaf) and search_fn(node_g, *args):
+                        # it's a match!
                         matches.append(node_g)
                     # internal node? descend.
                     elif isinstance(node_g, Node):
-                        if kwargs.get('dfs', True):  # defaults search to dfs
-                            for c in self.children(node_p):
-                                queue.insert(0, c.pos)
-                        else: # bfs
-                            queue.extend(c.pos for c in self.children(node_p))
+                        results = {}
+                        child_order = []
+                        for c in self.children(node_p):
+                            # repair while searching.
+                            if c.node is None:
+                                if c.pos in self.missing_nodes:
+                                    self._rebuild_node(c.pos)
+                                    c.node = self.nodes[c.pos]
+                                else:
+                                    continue
+                            if search_fn(c.node, *args, results=results):
+                                child_order.append((results[c.node.name], c.pos))
+                            child_order.sort()
+
+                            for score, pos in child_order:
+                                queue.insert(0, pos)
+                else:
+                    # apply search fn. If return false, truncate search.
+                    if search_fn(node_g, *args):
+
+                        # leaf node? it's a match!
+                        if isinstance(node_g, Leaf):
+                            matches.append(node_g)
+                        # internal node? descend.
+                        elif isinstance(node_g, Node):
+                            if strategy == 'bfs':
+                                queue.extend(c.pos for c in self.children(node_p))
+                            else:  # dfs
+                                for c in self.children(node_p):
+                                    queue.insert(0, c.pos)
         return matches
 
     def _rebuild_node(self, pos=0):
