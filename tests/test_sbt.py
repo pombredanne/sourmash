@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 
+import shutil
 import os
 
 import pytest
@@ -8,8 +9,8 @@ from sourmash import signature
 from sourmash.sbt import SBT, GraphFactory, Leaf, Node
 from sourmash.sbtmh import (SigLeaf, search_minhashes,
                                 search_minhashes_containment)
-from sourmash.sbt_storage import (FSStorage, TarStorage,
-                                      RedisStorage, IPFSStorage)
+from sourmash.sbt_storage import (FSStorage, TarStorage, RedisStorage,
+                                  IPFSStorage, ZipStorage)
 
 from . import sourmash_tst_utils as utils
 
@@ -363,6 +364,40 @@ def test_sbt_tarstorage():
             assert old_result == new_result
 
 
+def test_sbt_zipstorage():
+    factory = GraphFactory(31, 1e5, 4)
+    with utils.TempDirectory() as location:
+        tree = SBT(factory)
+
+        for f in utils.SIG_FILES:
+            sig = next(signature.load_signatures(utils.get_test_data(f)))
+            leaf = SigLeaf(os.path.basename(f), sig)
+            tree.add_node(leaf)
+            to_search = leaf
+
+        print('*' * 60)
+        print("{}:".format(to_search.metadata))
+        old_result = {str(s) for s in tree.find(search_minhashes,
+                                                to_search.data, 0.1)}
+        print(*old_result, sep='\n')
+
+        with ZipStorage(os.path.join(location, 'tree.zip')) as storage:
+            tree.save(os.path.join(location, 'tree'), storage=storage)
+
+        with ZipStorage(os.path.join(location, 'tree.zip')) as storage:
+            tree = SBT.load(os.path.join(location, 'tree'),
+                            leaf_loader=SigLeaf.load,
+                            storage=storage)
+
+            print('*' * 60)
+            print("{}:".format(to_search.metadata))
+            new_result = {str(s) for s in tree.find(search_minhashes,
+                                                    to_search.data, 0.1)}
+            print(*new_result, sep='\n')
+
+            assert old_result == new_result
+
+
 def test_sbt_ipfsstorage():
     ipfsapi = pytest.importorskip('ipfsapi')
 
@@ -438,6 +473,23 @@ def test_sbt_redisstorage():
             print(*new_result, sep='\n')
 
             assert old_result == new_result
+
+
+def test_load_zip(tmpdir):
+    testdata = utils.get_test_data("v4.zip")
+    testsbt = tmpdir.join("v4.zip")
+
+    shutil.copyfile(testdata, str(testsbt))
+
+    tree = SBT.load(str(testsbt), leaf_loader=SigLeaf.load)
+
+    to_search = signature.load_one_signature(utils.get_test_data(utils.SIG_FILES[0]))
+
+    print("*" * 60)
+    print("{}:".format(to_search))
+    new_result = {str(s) for s in tree.find(search_minhashes, to_search, 0.1)}
+    print(*new_result, sep="\n")
+    assert len(new_result) == 2
 
 
 def test_tree_repair():

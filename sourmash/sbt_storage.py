@@ -4,6 +4,7 @@ import abc
 from io import BytesIO
 import os
 import tarfile
+import zipfile
 
 
 class Storage(abc.ABCMeta(str('ABC'), (object,), {'__slots__': ()})):
@@ -26,6 +27,9 @@ class Storage(abc.ABCMeta(str('ABC'), (object,), {'__slots__': ()})):
 
     def __exit__(self, type, value, traceback):
         pass
+
+    def can_open(self, location):
+        return False
 
 
 class FSStorage(Storage):
@@ -95,6 +99,54 @@ class TarStorage(Storage):
 
     def __exit__(self, type, value, traceback):
         self.tarfile.close()
+
+    @staticmethod
+    def can_open(location):
+        try:
+            tarfile.is_tarfile(location)
+        except IOError:
+            return False
+
+        return False
+
+
+class ZipStorage(Storage):
+
+    def __init__(self, path=None):
+        # TODO: leave it open, or close/open every time?
+
+        if path is None:
+            # TODO: Open a temporary file?
+            pass
+
+        self.path = os.path.abspath(path)
+
+        dirname = os.path.dirname(self.path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+
+        if os.path.exists(self.path):
+            self.zipfile = zipfile.ZipFile(path, 'r')
+        else:
+            self.zipfile = zipfile.ZipFile(path, mode='w',
+                                           compression=zipfile.ZIP_STORED)
+
+    def save(self, path, content):
+        self.zipfile.writestr(path, content)
+        return path
+
+    def load(self, path):
+        return self.zipfile.read(path)
+
+    def init_args(self):
+        return {'path': self.path}
+
+    def __exit__(self, type, value, traceback):
+        self.zipfile.close()
+
+    @staticmethod
+    def can_open(location):
+        return zipfile.is_zipfile(location)
 
 
 class IPFSStorage(Storage):
