@@ -160,7 +160,9 @@ fn main() -> Result<(), ExitFailure> {
             let sbt = MHBT::from_path(sbt_file)?;
             let new_sbt: MHBT = scaffold(sbt.leaves());
 
-            assert_eq!(new_sbt.leaves().len(), 100);
+            new_sbt.save_file("test");
+
+            assert_eq!(new_sbt.leaves().len(), sbt.leaves().len());
             Ok(())
         }
         Some("search") => {

@@ -31,7 +31,6 @@ from-finch = ["finch", "needletail"]
 #cbindgen = "~0.6.7"
 
 [dependencies]
-backtrace = "=0.3.9" # https://github.com/alexcrichton/backtrace-rs/issues/147
 byteorder = "^1.2"
 cfg-if = "0.1"
 clap = { version = "~2.32", features = ["yaml"] }
@@ -67,6 +66,7 @@ features = ["bz2"]
 proptest = "^0.8"
 criterion = "^0.2"
 rand = "^0.5"
+tempfile = "3"
 
 [[bench]]
 name = "index"

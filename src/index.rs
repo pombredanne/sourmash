@@ -11,7 +11,7 @@ pub mod search;
 use std::path::Path;
 use std::rc::Rc;
 
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 
 use derive_builder::Builder;
 use failure::Error;
@@ -58,7 +58,7 @@ where
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LeafInfo {
     pub filename: String,
     pub name: String,

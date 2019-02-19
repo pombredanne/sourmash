@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::hash::{BuildHasherDefault, Hasher};
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, Write};
 use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -9,7 +9,7 @@ use std::rc::Rc;
 use derive_builder::Builder;
 use failure::Error;
 use lazy_init::Lazy;
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 
 use crate::index::nodegraph::Nodegraph;
 use crate::index::storage::{FSStorage, ReadData, Storage, StorageInfo};
@@ -135,6 +135,49 @@ where
         let sbt = SBT::<Node<U>, Leaf<T>>::from_reader(&mut reader, &basepath.parent().unwrap())?;
         Ok(sbt)
     }
+
+    pub fn save_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+        let mut args: HashMap<String, String> = HashMap::default();
+        args.insert("path".into(), ".".into());
+        let storage = StorageInfo {
+            backend: "FSStorage".into(),
+            args: args,
+        };
+        let info: SBTInfo<NodeInfo, LeafInfo> = SBTInfo {
+            d: self.d,
+            factory: self.factory.clone(),
+            storage: storage,
+            version: 5,
+            nodes: self
+                .nodes
+                .iter()
+                .map(|(n, l)| {
+                    let new_node = NodeInfo {
+                        filename: l.filename.clone(),
+                        name: l.name.clone(),
+                        metadata: l.metadata.clone(),
+                    };
+                    (*n, new_node)
+                })
+                .collect(),
+            leaves: self
+                .leaves
+                .iter()
+                .map(|(n, l)| {
+                    let new_node = LeafInfo {
+                        filename: l.filename.clone(),
+                        name: l.name.clone(),
+                        metadata: l.metadata.clone(),
+                    };
+                    (*n, new_node)
+                })
+                .collect(),
+        };
+        let file = File::create(path)?;
+        serde_json::to_writer(file, &info)?;
+
+        Ok(())
+    }
 }
 
 impl<N, L> Index for SBT<N, L>
@@ -185,7 +228,7 @@ where
     }
 }
 
-#[derive(Builder, Clone, Default, Deserialize)]
+#[derive(Builder, Clone, Default, Serialize, Deserialize)]
 pub struct Factory {
     class: String,
     args: Vec<u64>,
@@ -285,14 +328,14 @@ impl<S: Storage + ?Sized> ReadData<Nodegraph, S> for Node<Nodegraph> {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct NodeInfo {
     filename: String,
     name: String,
     metadata: HashMap<String, u64>,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct SBTInfo<N, L> {
     d: u32,
     version: u32,
@@ -519,9 +562,27 @@ impl BinaryTree {
 
 #[cfg(test)]
 mod test {
+    use std::io::{Seek, SeekFrom};
+    use tempfile;
+
     use super::*;
     use crate::index::linear::{LinearIndex, LinearIndexBuilder};
     use crate::index::search::{search_minhashes, search_minhashes_containment};
+
+    #[test]
+    fn save_sbt() {
+        let mut filename = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        filename.push("tests/test-data/v5.sbt.json");
+
+        let sbt = MHBT::from_path(filename).expect("Loading error");
+
+        let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
+        sbt.save_file(tmpfile.path()).unwrap();
+
+        tmpfile.seek(SeekFrom::Start(0)).unwrap();
+
+        let mut sbt = MHBT::from_path(tmpfile.path()).expect("Loading error");
+    }
 
     #[test]
     fn load_sbt() {
@@ -597,6 +658,7 @@ mod test {
         let sbt = MHBT::from_path(filename).expect("Loading error");
 
         let new_sbt: MHBT = scaffold(sbt.leaves());
+
         assert_eq!(new_sbt.leaves().len(), 7);
     }
 }
