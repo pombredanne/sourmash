@@ -35,7 +35,7 @@ subcommands:
             - threshold:
                 long: "threshold"
                 help: minimum threshold for reporting matches
-                default_value: "0.8"
+                default_value: "0.08"
                 takes_value: true
                 required: false
             - save-matches:

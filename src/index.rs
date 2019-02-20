@@ -97,6 +97,15 @@ where
     pub(crate) data: Rc<Lazy<T>>,
 }
 
+impl<T> Dataset<T>
+where
+    T: std::marker::Sync,
+{
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+}
+
 impl<T> std::fmt::Debug for Dataset<T>
 where
     T: std::marker::Sync,
@@ -142,13 +151,27 @@ impl Dataset<Signature> {
     }
 }
 
+impl From<Dataset<Signature>> for Signature {
+    fn from(other: Dataset<Signature>) -> Signature {
+        other.data.get().unwrap().clone()
+    }
+}
+
 impl Comparable<Dataset<Signature>> for Dataset<Signature> {
     fn similarity(&self, other: &Dataset<Signature>) -> f64 {
-        let ng: &Signature = self.data().unwrap();
-        let ong: &Signature = other.data().unwrap();
+        let mut sim = 0.0;
+        if let Some(storage) = &self.storage {
+            let ng: &Signature = self.data(&**storage).unwrap();
+            let ong: &Signature = other.data(&**storage).unwrap();
 
-        // TODO: select the right signatures...
-        ng.signatures[0].compare(&ong.signatures[0]).unwrap()
+            // TODO: select the right signatures...
+            sim = ng.signatures[0].compare(&ong.signatures[0]).unwrap()
+        } else if let Some(ng) = self.data.get() {
+            if let Some(ong) = other.data.get() {
+                sim = ng.signatures[0].compare(&ong.signatures[0]).unwrap()
+            }
+        }
+        sim
     }
 
     fn containment(&self, other: &Dataset<Signature>) -> f64 {

@@ -591,6 +591,17 @@ fn default_version() -> f64 {
 }
 
 impl Signature {
+    pub fn name(&self) -> String {
+        if let Some(name) = &self.name {
+            name.clone()
+        } else if let Some(filename) = &self.filename {
+            filename.clone()
+        } else {
+            //TODO md5sum case
+            "".into()
+        }
+    }
+
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Vec<Signature>, Error> {
         let mut reader = io::BufReader::new(File::open(path)?);
         Ok(Signature::from_reader(&mut reader)?)

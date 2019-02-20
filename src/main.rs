@@ -7,11 +7,12 @@ use clap::{load_yaml, App};
 use exitfailure::ExitFailure;
 use failure::{Error, ResultExt};
 use human_panic::setup_panic;
+use lazy_init::Lazy;
 use log::{debug, error, info, LevelFilter};
 
 use sourmash::index::sbt::{scaffold, MHBT};
 use sourmash::index::search::search_minhashes;
-use sourmash::index::{Dataset, DatasetBuilder, Index};
+use sourmash::index::{Dataset, DatasetBuilder, Index. Comparable};
 use sourmash::Signature;
 
 struct Query<T> {
@@ -34,14 +35,24 @@ impl Query<Signature> {
     }
 
     fn name(&self) -> String {
-        self.data.name.clone().unwrap()
+        self.data.name().clone()
     }
 }
 
 impl From<Query<Signature>> for Dataset<Signature> {
     fn from(other: Query<Signature>) -> Dataset<Signature> {
-        let leaf = DatasetBuilder::default().build().unwrap();
-        //leaf.data.get_or_create(|| data.query);
+        let data = Lazy::new();
+        data.get_or_create(|| other.data);
+
+        let leaf = DatasetBuilder::default()
+            .data(Rc::new(data))
+            .filename("".into())
+            .name("".into())
+            .metadata("".into())
+            .storage(None)
+            .build()
+            .unwrap();
+
         leaf
     }
 }
@@ -55,7 +66,7 @@ fn load_query_signature(
     let mut reader = io::BufReader::new(File::open(query)?);
     let sigs = Signature::load_signatures(&mut reader, ksize, moltype, scaled)?;
 
-    debug!("{:?}", sigs);
+    //dbg!(&sigs);
     // TODO: what if we have more than one left?
     let data = sigs[0].clone();
 
@@ -137,9 +148,17 @@ fn search_databases(
     let query_leaf = query.into();
 
     for db in databases {
-        for dataset in db.data.find(search_fn, &query_leaf, threshold) {}
+        let matches = db.data.find(search_fn, &query_leaf, threshold).unwrap();
+        for dataset in matches.into_iter() {
+            let similarity = query_leaf.similarity(dataset);
+            results.push(Results {
+                similarity,
+                match_sig: dataset.clone().into(),
+            })
+        }
     }
 
+    results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
     Ok(results)
 }
 
@@ -226,7 +245,7 @@ fn main() -> Result<(), ExitFailure> {
                 cmd.value_of("num-results").unwrap().parse().unwrap()
             };
 
-            let n_matches = if num_results == 0 || results.len() < num_results {
+            let n_matches = if num_results == 0 || results.len() <= num_results {
                 println!("{} matches:", results.len());
                 results.len()
             } else {
@@ -238,9 +257,9 @@ fn main() -> Result<(), ExitFailure> {
             println!("----------   -----");
             for sr in &results[..n_matches] {
                 println!(
-                    "{:>6.1}%       {:60}",
+                    "{:>5.1}%       {:60}",
                     sr.similarity * 100.,
-                    sr.match_sig.name.clone().unwrap()
+                    sr.match_sig.name()
                 );
             }
 
