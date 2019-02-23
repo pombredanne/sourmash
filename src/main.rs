@@ -10,9 +10,12 @@ use human_panic::setup_panic;
 use lazy_init::Lazy;
 use log::{debug, error, info, LevelFilter};
 
-use sourmash::index::sbt::{scaffold, MHBT};
-use sourmash::index::search::search_minhashes;
 use sourmash::index::{Dataset, DatasetBuilder, Index. Comparable};
+use sourmash::index::nodegraph::Nodegraph;
+use sourmash::index::sbt::{scaffold, Node, MHBT, SBT};
+use sourmash::index::search::{
+    search_minhashes, search_minhashes_containment, search_minhashes_find_best,
+};
 use sourmash::Signature;
 
 struct Query<T> {
@@ -111,6 +114,7 @@ fn load_sbts_and_sigs(
         }
 
         // TODO: load sig, need to change Database
+        // IDEA: put sig into a LinearIndex, and replace Database with a Box<dyn Index>?
     }
 
     if n_signatures > 0 && n_databases > 0 {
@@ -144,17 +148,29 @@ fn search_databases(
 ) -> Result<Vec<Results>, Error> {
     let mut results = Vec::default();
 
-    let search_fn = search_minhashes;
+    let search_fn = if best_only {
+        search_minhashes_find_best()
+    } else if containment {
+        search_minhashes_containment
+    } else {
+        search_minhashes
+    };
     let query_leaf = query.into();
+
+    // TODO: set up scaled for DB and query
 
     for db in databases {
         let matches = db.data.find(search_fn, &query_leaf, threshold).unwrap();
         for dataset in matches.into_iter() {
             let similarity = query_leaf.similarity(dataset);
-            results.push(Results {
-                similarity,
-                match_sig: dataset.clone().into(),
-            })
+
+            // should always be true, but... better safe than sorry.
+            if similarity >= threshold {
+                results.push(Results {
+                    similarity,
+                    match_sig: dataset.clone().into(),
+                })
+            }
         }
     }
 

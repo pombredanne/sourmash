@@ -11,3 +11,11 @@ pub fn search_minhashes_containment<L>(
 ) -> bool {
     node.containment(query) > threshold
 }
+
+pub fn search_minhashes_find_best<L>() -> fn(&dyn Comparable<L>, &L, f64) -> bool {
+    let mut best_so_far = 0.;
+
+    // TODO: implement the proper function, as a closure that modifies
+    // `best_so_far`
+    search_minhashes
+}
