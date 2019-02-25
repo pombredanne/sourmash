@@ -1,10 +1,10 @@
+pub mod bigsi;
+pub mod linear;
 pub mod sbt;
 
 pub mod storage;
 
 pub mod nodegraph;
-
-pub mod linear;
 
 pub mod search;
 
@@ -17,6 +17,7 @@ use derive_builder::Builder;
 use failure::Error;
 use lazy_init::Lazy;
 
+use crate::index::search::{search_minhashes, search_minhashes_containment};
 use crate::index::storage::{ReadData, Storage};
 use crate::Signature;
 
@@ -32,11 +33,28 @@ pub trait Index {
     where
         F: Fn(&dyn Comparable<Self::Item>, &Self::Item, f64) -> bool;
 
+    fn search(
+        &self,
+        sig: &Self::Item,
+        threshold: f64,
+        containment: bool,
+    ) -> Result<Vec<&Self::Item>, Error> {
+        if containment {
+            self.find(search_minhashes_containment, sig, threshold)
+        } else {
+            self.find(search_minhashes, sig, threshold)
+        }
+    }
+
+    //fn gather(&self, sig: &Self::Item, threshold: f64) -> Result<Vec<&Self::Item>, Error>;
+
     fn insert(&mut self, node: &Self::Item);
 
     fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error>;
 
     fn load<P: AsRef<Path>>(path: P) -> Result<(), Error>;
+
+    fn datasets(&self) -> Vec<Self::Item>;
 }
 
 // TODO: split into two traits, Similarity and Containment?
@@ -65,6 +83,7 @@ pub struct LeafInfo {
     pub metadata: String,
 }
 
+// TODO: rename Leaf as Dataset
 #[derive(Builder, Default, Clone)]
 pub struct Leaf<T>
 where

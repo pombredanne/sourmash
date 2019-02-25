@@ -4,6 +4,7 @@ use std::rc::Rc;
 use derive_builder::Builder;
 use failure::Error;
 
+use crate::index::search::search_minhashes;
 use crate::index::storage::Storage;
 use crate::index::{Comparable, Index};
 
@@ -13,7 +14,7 @@ pub struct LinearIndex<L> {
     storage: Rc<dyn Storage>,
 
     #[builder(setter(skip))]
-    pub(crate) leaves: Vec<L>,
+    pub(crate) datasets: Vec<L>,
 }
 
 impl<L> Index for LinearIndex<L>
@@ -32,7 +33,7 @@ where
         F: Fn(&dyn Comparable<Self::Item>, &Self::Item, f64) -> bool,
     {
         Ok(self
-            .leaves
+            .datasets
             .iter()
             .flat_map(|node| {
                 if search_fn(node, sig, threshold) {
@@ -45,7 +46,7 @@ where
     }
 
     fn insert(&mut self, node: &L) {
-        self.leaves.push(node.clone());
+        self.datasets.push(node.clone());
     }
 
     fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
@@ -54,5 +55,9 @@ where
 
     fn load<P: AsRef<Path>>(path: P) -> Result<(), Error> {
         Ok(())
+    }
+
+    fn datasets(&self) -> Vec<Self::Item> {
+        self.datasets.to_vec()
     }
 }

@@ -12,6 +12,7 @@ use lazy_init::Lazy;
 use serde_derive::{Deserialize, Serialize};
 
 use crate::index::nodegraph::Nodegraph;
+use crate::index::search::search_minhashes;
 use crate::index::storage::{FSStorage, ReadData, Storage, StorageInfo};
 use crate::index::{Comparable, Index, Leaf, LeafInfo};
 use crate::Signature;
@@ -56,10 +57,6 @@ where
         (0..u64::from(self.d)).map(|c| self.child(pos, c)).collect()
     }
 
-    pub fn leaves(&self) -> Vec<L> {
-        self.leaves.values().cloned().collect()
-    }
-
     pub fn storage(&self) -> Rc<dyn Storage> {
         Rc::clone(&self.storage)
     }
@@ -77,6 +74,8 @@ where
         R: Read,
         P: AsRef<Path>,
     {
+        // TODO: check https://serde.rs/enum-representations.html for a
+        // solution for loading v4 and v5
         let sbt: SBTInfo<NodeInfo, LeafInfo> = serde_json::from_reader(rdr)?;
 
         // TODO: match with available Storage while we don't
@@ -217,7 +216,7 @@ where
         Ok(matches)
     }
 
-    fn insert(&mut self, node: &L) {}
+    fn insert(&mut self, dataset: &L) {}
 
     fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
         Ok(())
@@ -225,6 +224,10 @@ where
 
     fn load<P: AsRef<Path>>(path: P) -> Result<(), Error> {
         Ok(())
+    }
+
+    fn datasets(&self) -> Vec<Self::Item> {
+        self.leaves.values().cloned().collect()
     }
 }
 
@@ -621,8 +624,8 @@ mod test {
 
         println!(
             "linear leaves {:?} {:?}",
-            linear.leaves.len(),
-            linear.leaves
+            linear.datasets.len(),
+            linear.datasets
         );
 
         let results = linear.find(search_minhashes, &leaf, 0.5).unwrap();
@@ -657,8 +660,8 @@ mod test {
 
         let sbt = MHBT::from_path(filename).expect("Loading error");
 
-        let new_sbt: MHBT = scaffold(sbt.leaves());
+        let new_sbt: MHBT = scaffold(sbt.datasets());
 
-        assert_eq!(new_sbt.leaves().len(), 7);
+        assert_eq!(new_sbt.datasets().len(), 7);
     }
 }

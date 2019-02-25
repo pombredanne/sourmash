@@ -9,8 +9,7 @@ use failure::{Error, ResultExt};
 use human_panic::setup_panic;
 use log::{debug, error, info, LevelFilter};
 
-use sourmash::index::nodegraph::Nodegraph;
-use sourmash::index::sbt::{scaffold, Node, MHBT, SBT};
+use sourmash::index::sbt::{scaffold, MHBT};
 use sourmash::index::search::search_minhashes;
 use sourmash::index::{Index, Leaf, LeafBuilder};
 use sourmash::Signature;
@@ -158,11 +157,11 @@ fn main() -> Result<(), ExitFailure> {
             let sbt_file = cmd.value_of("current_sbt").unwrap();
 
             let sbt = MHBT::from_path(sbt_file)?;
-            let new_sbt: MHBT = scaffold(sbt.leaves());
+            let new_sbt: MHBT = scaffold(sbt.datasets());
 
             new_sbt.save_file("test");
 
-            assert_eq!(new_sbt.leaves().len(), sbt.leaves().len());
+            assert_eq!(new_sbt.datasets().len(), sbt.datasets().len());
             Ok(())
         }
         Some("search") => {
