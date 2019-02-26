@@ -8,7 +8,7 @@ use sourmash::index::bigsi::BIGSI;
 use sourmash::index::linear::LinearIndexBuilder;
 use sourmash::index::sbt::MHBT;
 use sourmash::index::storage::ReadData;
-use sourmash::index::{Index, Leaf};
+use sourmash::index::{Dataset, Index};
 use sourmash::Signature;
 
 fn find_small_bench(c: &mut Criterion) {
@@ -17,7 +17,7 @@ fn find_small_bench(c: &mut Criterion) {
 
     let sbt = MHBT::from_path(filename).expect("Loading error");
 
-    let leaf: Leaf<Signature> = (*sbt.datasets().first().unwrap()).clone();
+    let leaf: Dataset<Signature> = (*sbt.datasets().first().unwrap()).clone();
     let storage = sbt.storage();
 
     let mut linear = LinearIndexBuilder::default()
@@ -36,17 +36,19 @@ fn find_small_bench(c: &mut Criterion) {
 
     let sbt_find = Fun::new(
         "sbt_search",
-        move |b: &mut Bencher, leaf: &Leaf<Signature>| b.iter(|| sbt.search(leaf, 0.1, false)),
+        move |b: &mut Bencher, leaf: &Dataset<Signature>| b.iter(|| sbt.search(leaf, 0.1, false)),
     );
 
     let linear_find = Fun::new(
         "linear_search",
-        move |b: &mut Bencher, leaf: &Leaf<Signature>| b.iter(|| linear.search(leaf, 0.1, false)),
+        move |b: &mut Bencher, leaf: &Dataset<Signature>| {
+            b.iter(|| linear.search(leaf, 0.1, false))
+        },
     );
 
     let bigsi_find = Fun::new(
         "bigsi_search",
-        move |b: &mut Bencher, leaf: &Leaf<Signature>| {
+        move |b: &mut Bencher, leaf: &Dataset<Signature>| {
             let data = leaf.data(&*storage).unwrap();
             b.iter(|| bigsi.search(data, 0.1, false))
         },
@@ -62,7 +64,7 @@ fn find_subset_bench(c: &mut Criterion) {
 
     let sbt = MHBT::from_path(filename).expect("Loading error");
 
-    let leaf: Leaf<Signature> = (*sbt.datasets().first().unwrap()).clone();
+    let leaf: Dataset<Signature> = (*sbt.datasets().first().unwrap()).clone();
     let storage = sbt.storage();
 
     let mut linear = LinearIndexBuilder::default()
@@ -81,17 +83,19 @@ fn find_subset_bench(c: &mut Criterion) {
 
     let sbt_find = Fun::new(
         "sbt_search",
-        move |b: &mut Bencher, leaf: &Leaf<Signature>| b.iter(|| sbt.search(leaf, 0.1, false)),
+        move |b: &mut Bencher, leaf: &Dataset<Signature>| b.iter(|| sbt.search(leaf, 0.1, false)),
     );
 
     let linear_find = Fun::new(
         "linear_search",
-        move |b: &mut Bencher, leaf: &Leaf<Signature>| b.iter(|| linear.search(leaf, 0.1, false)),
+        move |b: &mut Bencher, leaf: &Dataset<Signature>| {
+            b.iter(|| linear.search(leaf, 0.1, false))
+        },
     );
 
     let bigsi_find = Fun::new(
         "bigsi_search",
-        move |b: &mut Bencher, leaf: &Leaf<Signature>| {
+        move |b: &mut Bencher, leaf: &Dataset<Signature>| {
             let data = leaf.data(&*storage).unwrap();
             b.iter(|| bigsi.search(data, 0.1, false))
         },

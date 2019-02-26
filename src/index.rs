@@ -77,15 +77,14 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct LeafInfo {
+pub struct DatasetInfo {
     pub filename: String,
     pub name: String,
     pub metadata: String,
 }
 
-// TODO: rename Leaf as Dataset
 #[derive(Builder, Default, Clone)]
-pub struct Leaf<T>
+pub struct Dataset<T>
 where
     T: std::marker::Sync,
 {
@@ -98,20 +97,20 @@ where
     pub(crate) data: Rc<Lazy<T>>,
 }
 
-impl<T> std::fmt::Debug for Leaf<T>
+impl<T> std::fmt::Debug for Dataset<T>
 where
     T: std::marker::Sync,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Leaf [filename: {}, name: {}, metadata: {}]",
+            "Dataset [filename: {}, name: {}, metadata: {}]",
             self.filename, self.name, self.metadata
         )
     }
 }
 
-impl<S: Storage + ?Sized> ReadData<Signature, S> for Leaf<Signature> {
+impl<S: Storage + ?Sized> ReadData<Signature, S> for Dataset<Signature> {
     fn data(&self, storage: &S) -> Result<&Signature, Error> {
         let sig = self.data.get_or_create(|| {
             let raw = storage.load(&self.filename).unwrap();
@@ -124,8 +123,8 @@ impl<S: Storage + ?Sized> ReadData<Signature, S> for Leaf<Signature> {
     }
 }
 
-impl Leaf<Signature> {
-    pub fn count_common(&self, other: &Leaf<Signature>) -> u64 {
+impl Dataset<Signature> {
+    pub fn count_common(&self, other: &Dataset<Signature>) -> u64 {
         if let Some(storage) = &self.storage {
             let ng: &Signature = self.data(&**storage).unwrap();
             let ong: &Signature = other.data(&**storage).unwrap();
@@ -147,8 +146,8 @@ impl Leaf<Signature> {
     }
 }
 
-impl Comparable<Leaf<Signature>> for Leaf<Signature> {
-    fn similarity(&self, other: &Leaf<Signature>) -> f64 {
+impl Comparable<Dataset<Signature>> for Dataset<Signature> {
+    fn similarity(&self, other: &Dataset<Signature>) -> f64 {
         if let Some(storage) = &self.storage {
             let ng: &Signature = self.data(&**storage).unwrap();
             let ong: &Signature = other.data(&**storage).unwrap();
@@ -162,7 +161,7 @@ impl Comparable<Leaf<Signature>> for Leaf<Signature> {
         }
     }
 
-    fn containment(&self, other: &Leaf<Signature>) -> f64 {
+    fn containment(&self, other: &Dataset<Signature>) -> f64 {
         if let Some(storage) = &self.storage {
             let ng: &Signature = self.data(&**storage).unwrap();
             let ong: &Signature = other.data(&**storage).unwrap();

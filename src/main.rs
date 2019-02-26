@@ -11,7 +11,7 @@ use log::{debug, error, info, LevelFilter};
 
 use sourmash::index::sbt::{scaffold, MHBT};
 use sourmash::index::search::search_minhashes;
-use sourmash::index::{Index, Leaf, LeafBuilder};
+use sourmash::index::{Dataset, DatasetBuilder, Index};
 use sourmash::Signature;
 
 struct Query<T> {
@@ -38,9 +38,9 @@ impl Query<Signature> {
     }
 }
 
-impl From<Query<Signature>> for Leaf<Signature> {
-    fn from(other: Query<Signature>) -> Leaf<Signature> {
-        let leaf = LeafBuilder::default().build().unwrap();
+impl From<Query<Signature>> for Dataset<Signature> {
+    fn from(other: Query<Signature>) -> Dataset<Signature> {
+        let leaf = DatasetBuilder::default().build().unwrap();
         //leaf.data.get_or_create(|| data.query);
         leaf
     }

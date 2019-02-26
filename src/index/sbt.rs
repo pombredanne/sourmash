@@ -14,10 +14,10 @@ use serde_derive::{Deserialize, Serialize};
 use crate::index::nodegraph::Nodegraph;
 use crate::index::search::search_minhashes;
 use crate::index::storage::{FSStorage, ReadData, Storage, StorageInfo};
-use crate::index::{Comparable, Index, Leaf, LeafInfo};
+use crate::index::{Comparable, Dataset, DatasetInfo, Index};
 use crate::Signature;
 
-pub type MHBT = SBT<Node<Nodegraph>, Leaf<Signature>>;
+pub type MHBT = SBT<Node<Nodegraph>, Dataset<Signature>>;
 
 #[derive(Builder)]
 pub struct SBT<N, L> {
@@ -64,19 +64,19 @@ where
     // combine
 }
 
-impl<T, U> SBT<Node<U>, Leaf<T>>
+impl<T, U> SBT<Node<U>, Dataset<T>>
 where
     T: std::marker::Sync,
     U: std::marker::Sync,
 {
-    pub fn from_reader<R, P>(rdr: &mut R, path: P) -> Result<SBT<Node<U>, Leaf<T>>, Error>
+    pub fn from_reader<R, P>(rdr: &mut R, path: P) -> Result<SBT<Node<U>, Dataset<T>>, Error>
     where
         R: Read,
         P: AsRef<Path>,
     {
         // TODO: check https://serde.rs/enum-representations.html for a
         // solution for loading v4 and v5
-        let sbt: SBTInfo<NodeInfo, LeafInfo> = serde_json::from_reader(rdr)?;
+        let sbt: SBTInfo<NodeInfo, DatasetInfo> = serde_json::from_reader(rdr)?;
 
         // TODO: match with available Storage while we don't
         // add a function to build a Storage from a StorageInfo
@@ -108,7 +108,7 @@ where
                 .leaves
                 .into_iter()
                 .map(|(n, l)| {
-                    let new_node = Leaf {
+                    let new_node = Dataset {
                         filename: l.filename,
                         name: l.name,
                         metadata: l.metadata,
@@ -121,7 +121,7 @@ where
         })
     }
 
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<SBT<Node<U>, Leaf<T>>, Error> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<SBT<Node<U>, Dataset<T>>, Error> {
         let file = File::open(&path)?;
         let mut reader = BufReader::new(file);
 
@@ -131,7 +131,8 @@ where
         basepath.push(path);
         basepath.canonicalize()?;
 
-        let sbt = SBT::<Node<U>, Leaf<T>>::from_reader(&mut reader, &basepath.parent().unwrap())?;
+        let sbt =
+            SBT::<Node<U>, Dataset<T>>::from_reader(&mut reader, &basepath.parent().unwrap())?;
         Ok(sbt)
     }
 
@@ -142,7 +143,7 @@ where
             backend: "FSStorage".into(),
             args: args,
         };
-        let info: SBTInfo<NodeInfo, LeafInfo> = SBTInfo {
+        let info: SBTInfo<NodeInfo, DatasetInfo> = SBTInfo {
             d: self.d,
             factory: self.factory.clone(),
             storage: storage,
@@ -163,7 +164,7 @@ where
                 .leaves
                 .iter()
                 .map(|(n, l)| {
-                    let new_node = LeafInfo {
+                    let new_node = DatasetInfo {
                         filename: l.filename.clone(),
                         name: l.name.clone(),
                         metadata: l.metadata.clone(),
@@ -182,7 +183,7 @@ where
 impl<N, L> Index for SBT<N, L>
 where
     N: Comparable<N> + Comparable<L>,
-    L: Comparable<L> + std::clone::Clone,
+    L: Comparable<L> + std::clone::Clone + std::fmt::Debug,
 {
     type Item = L;
 
@@ -276,8 +277,8 @@ impl Comparable<Node<Nodegraph>> for Node<Nodegraph> {
     }
 }
 
-impl Comparable<Leaf<Signature>> for Node<Nodegraph> {
-    fn similarity(&self, other: &Leaf<Signature>) -> f64 {
+impl Comparable<Dataset<Signature>> for Node<Nodegraph> {
+    fn similarity(&self, other: &Dataset<Signature>) -> f64 {
         if let Some(storage) = &self.storage {
             let ng: &Nodegraph = self.data(&**storage).unwrap();
             let oth: &Signature = other.data(&**storage).unwrap();
@@ -301,7 +302,7 @@ impl Comparable<Leaf<Signature>> for Node<Nodegraph> {
         }
     }
 
-    fn containment(&self, other: &Leaf<Signature>) -> f64 {
+    fn containment(&self, other: &Dataset<Signature>) -> f64 {
         if let Some(storage) = &self.storage {
             let ng: &Nodegraph = self.data(&**storage).unwrap();
             let oth: &Signature = other.data(&**storage).unwrap();
@@ -378,7 +379,7 @@ type HashIntersection = HashSet<u64, BuildHasherDefault<NoHashHasher>>;
 enum BinaryTree {
     Empty,
     Internal(Box<TreeNode<HashIntersection>>),
-    Leaf(Box<TreeNode<Leaf<Signature>>>),
+    Dataset(Box<TreeNode<Dataset<Signature>>>),
 }
 
 struct TreeNode<T> {
@@ -387,11 +388,11 @@ struct TreeNode<T> {
     right: BinaryTree,
 }
 
-pub fn scaffold<N>(mut datasets: Vec<Leaf<Signature>>) -> SBT<Node<N>, Leaf<Signature>>
+pub fn scaffold<N>(mut datasets: Vec<Dataset<Signature>>) -> SBT<Node<N>, Dataset<Signature>>
 where
     N: std::marker::Sync + std::clone::Clone + std::default::Default,
 {
-    let mut leaves: HashMap<u64, Leaf<Signature>> = HashMap::with_capacity(datasets.len());
+    let mut leaves: HashMap<u64, Dataset<Signature>> = HashMap::with_capacity(datasets.len());
 
     let mut next_round = Vec::new();
 
@@ -427,7 +428,7 @@ where
                 .cloned()
                 .collect();
 
-            let simleaf_tree = BinaryTree::Leaf(Box::new(TreeNode {
+            let simleaf_tree = BinaryTree::Dataset(Box::new(TreeNode {
                 element: similar_leaf,
                 left: BinaryTree::Empty,
                 right: BinaryTree::Empty,
@@ -435,7 +436,7 @@ where
             (simleaf_tree, in_common)
         };
 
-        let leaf_tree = BinaryTree::Leaf(Box::new(TreeNode {
+        let leaf_tree = BinaryTree::Dataset(Box::new(TreeNode {
             element: next_leaf,
             left: BinaryTree::Empty,
             right: BinaryTree::Empty,
@@ -472,7 +473,7 @@ where
             visited.insert(pos);
 
             match cnode {
-                BinaryTree::Leaf(leaf) => {
+                BinaryTree::Dataset(leaf) => {
                     leaves.insert(pos, leaf.element);
                 }
                 BinaryTree::Internal(mut node) => {
@@ -540,7 +541,7 @@ impl BinaryTree {
                 BinaryTree::Empty => {
                     std::mem::replace(&mut el1.element, HashIntersection::default())
                 }
-                _ => panic!("Should not see a Leaf at this level"),
+                _ => panic!("Should not see a Dataset at this level"),
             }
         } else {
             HashIntersection::default()

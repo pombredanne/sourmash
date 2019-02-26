@@ -8,7 +8,7 @@ use fixedbitset::FixedBitSet;
 
 use crate::index::nodegraph::Nodegraph;
 use crate::index::storage::Storage;
-use crate::index::{Comparable, Index, Leaf};
+use crate::index::{Comparable, Dataset, Index};
 use crate::{HashIntoType, Signature};
 
 #[derive(Clone, Builder)]
@@ -31,7 +31,7 @@ impl<L> BIGSI<L> {
         let mut matrix = Vec::with_capacity(bf_size);
         for _ in 0..bf_size {
             // TODO: figure initial capacity for each row
-            matrix.push(FixedBitSet::with_capacity(100));
+            matrix.push(FixedBitSet::with_capacity(32));
         }
 
         BIGSI {
@@ -46,6 +46,7 @@ impl BIGSI<Signature> {
     pub fn add(&mut self, dataset: Signature) {
         let mut ng = Nodegraph::new(&[self.matrix.len()], self.ksize);
 
+        // TODO: select correct minhash
         let mh = &dataset.signatures[0];
         for h in &mh.mins {
             ng.count(*h);
@@ -62,17 +63,16 @@ impl BIGSI<Signature> {
         }
     }
 
-    pub fn query(&self, hash: HashIntoType) -> Vec<usize> {
+    pub fn query(&self, hash: HashIntoType) -> impl Iterator<Item = usize> + '_ {
         let pos = hash as usize % self.matrix.len();
         let bs = &self.matrix[pos];
-        bs.ones().collect()
+        bs.ones()
     }
 
-    pub fn query_datasets(&self, hash: HashIntoType) -> Vec<Signature> {
+    pub fn query_datasets(&self, hash: HashIntoType) -> impl Iterator<Item = Signature> + '_ {
         self.query(hash)
             .into_iter()
-            .map(|pos| self.datasets[pos].clone())
-            .collect()
+            .map(move |pos| self.datasets[pos].clone())
     }
 }
 
@@ -169,7 +169,8 @@ mod test {
 
         let mut bigsi = BIGSI::new(10000, 10);
         let datasets = sbt.datasets();
-        let leaf = &datasets[6];
+        let leaf = &datasets[0];
+
         for l in &datasets {
             let data = l.data(&*sbt.storage()).unwrap();
             bigsi.insert(data);
@@ -177,24 +178,19 @@ mod test {
 
         let results_sbt = sbt.search(&leaf, 0.5, false).unwrap();
         assert_eq!(results_sbt.len(), 1);
-        //dbg!(&results_sbt[0].data.get().unwrap());
 
         let data = (*leaf.data).get().unwrap();
         let results_bigsi = bigsi.search(&data, 0.5, false).unwrap();
         assert_eq!(results_bigsi.len(), 1);
-        //dbg!(&results_bigsi);
 
         assert_eq!(results_sbt.len(), results_bigsi.len());
-        //assert_eq!(results_sbt, results_bigsi);
 
         let results_sbt = sbt.search(&leaf, 0.1, false).unwrap();
         assert_eq!(results_sbt.len(), 2);
-        //dbg!(&results_sbt[0].data.get().unwrap());
 
         let data = (*leaf.data).get().unwrap();
         let results_bigsi = bigsi.search(&data, 0.1, false).unwrap();
         assert_eq!(results_bigsi.len(), 2);
-        //dbg!(&results_bigsi);
 
         assert_eq!(results_sbt.len(), results_bigsi.len());
     }
