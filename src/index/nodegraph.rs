@@ -6,7 +6,7 @@ use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use failure::Error;
 use fixedbitset::FixedBitSet;
 
-type HashIntoType = u64;
+use crate::HashIntoType;
 
 #[derive(Debug, Default, Clone)]
 pub struct Nodegraph {
