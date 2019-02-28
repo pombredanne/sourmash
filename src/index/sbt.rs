@@ -13,7 +13,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::index::nodegraph::Nodegraph;
 use crate::index::search::search_minhashes;
-use crate::index::storage::{FSStorage, ReadData, Storage, StorageInfo};
+use crate::index::storage::{FSStorage, ReadData, ReadDataError, Storage, StorageInfo};
 use crate::index::{Comparable, Dataset, DatasetInfo, Index};
 use crate::Signature;
 
@@ -253,82 +253,64 @@ where
 
 impl Comparable<Node<Nodegraph>> for Node<Nodegraph> {
     fn similarity(&self, other: &Node<Nodegraph>) -> f64 {
-        if let Some(storage) = &self.storage {
-            let ng: &Nodegraph = self.data(&**storage).unwrap();
-            let ong: &Nodegraph = other.data(&**storage).unwrap();
-            ng.similarity(&ong)
-        } else {
-            // TODO: in this case storage is not set up,
-            // so we should throw an error?
-            0.0
-        }
+        let ng: &Nodegraph = self.data().unwrap();
+        let ong: &Nodegraph = other.data().unwrap();
+        ng.similarity(&ong)
     }
 
     fn containment(&self, other: &Node<Nodegraph>) -> f64 {
-        if let Some(storage) = &self.storage {
-            let ng: &Nodegraph = self.data(&**storage).unwrap();
-            let ong: &Nodegraph = other.data(&**storage).unwrap();
-            ng.containment(&ong)
-        } else {
-            // TODO: in this case storage is not set up,
-            // so we should throw an error?
-            0.0
-        }
+        let ng: &Nodegraph = self.data().unwrap();
+        let ong: &Nodegraph = other.data().unwrap();
+        ng.containment(&ong)
     }
 }
 
 impl Comparable<Dataset<Signature>> for Node<Nodegraph> {
     fn similarity(&self, other: &Dataset<Signature>) -> f64 {
-        if let Some(storage) = &self.storage {
-            let ng: &Nodegraph = self.data(&**storage).unwrap();
-            let oth: &Signature = other.data(&**storage).unwrap();
+        let ng: &Nodegraph = self.data().unwrap();
+        let oth: &Signature = other.data().unwrap();
 
-            // TODO: select the right signatures...
-            let sig = &oth.signatures[0];
-            if sig.size() == 0 {
-                return 0.0;
-            }
-
-            let matches: usize = sig.mins.iter().map(|h| ng.get(*h)).sum();
-
-            let min_n_below = self.metadata["min_n_below"] as f64;
-
-            // This overestimates the similarity, but better than truncating too
-            // soon and losing matches
-            matches as f64 / min_n_below
-        } else {
-            // TODO: throw error, storage not initialized
-            0.0
+        // TODO: select the right signatures...
+        let sig = &oth.signatures[0];
+        if sig.size() == 0 {
+            return 0.0;
         }
+
+        let matches: usize = sig.mins.iter().map(|h| ng.get(*h)).sum();
+
+        let min_n_below = self.metadata["min_n_below"] as f64;
+
+        // This overestimates the similarity, but better than truncating too
+        // soon and losing matches
+        matches as f64 / min_n_below
     }
 
     fn containment(&self, other: &Dataset<Signature>) -> f64 {
-        if let Some(storage) = &self.storage {
-            let ng: &Nodegraph = self.data(&**storage).unwrap();
-            let oth: &Signature = other.data(&**storage).unwrap();
+        let ng: &Nodegraph = self.data().unwrap();
+        let oth: &Signature = other.data().unwrap();
 
-            // TODO: select the right signatures...
-            let sig = &oth.signatures[0];
-            if sig.size() == 0 {
-                return 0.0;
-            }
-
-            let matches: usize = sig.mins.iter().map(|h| ng.get(*h)).sum();
-
-            matches as f64 / sig.size() as f64
-        } else {
-            // TODO: throw error, storage not initialized
-            0.0
+        // TODO: select the right signatures...
+        let sig = &oth.signatures[0];
+        if sig.size() == 0 {
+            return 0.0;
         }
+
+        let matches: usize = sig.mins.iter().map(|h| ng.get(*h)).sum();
+
+        matches as f64 / sig.size() as f64
     }
 }
 
-impl<S: Storage + ?Sized> ReadData<Nodegraph, S> for Node<Nodegraph> {
-    fn data(&self, storage: &S) -> Result<&Nodegraph, Error> {
-        Ok(self.data.get_or_create(|| {
-            let raw = storage.load(&self.filename).unwrap();
-            Nodegraph::from_reader(&mut &raw[..]).unwrap()
-        }))
+impl ReadData<Nodegraph> for Node<Nodegraph> {
+    fn data(&self) -> Result<&Nodegraph, Error> {
+        if let Some(storage) = &self.storage {
+            Ok(self.data.get_or_create(|| {
+                let raw = storage.load(&self.filename).unwrap();
+                Nodegraph::from_reader(&mut &raw[..]).unwrap()
+            }))
+        } else {
+            Err(ReadDataError::LoadError.into())
+        }
     }
 }
 

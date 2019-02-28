@@ -18,7 +18,6 @@ fn find_small_bench(c: &mut Criterion) {
     let sbt = MHBT::from_path(filename).expect("Loading error");
 
     let leaf: Dataset<Signature> = (*sbt.datasets().first().unwrap()).clone();
-    let storage = sbt.storage();
 
     let mut linear = LinearIndexBuilder::default()
         .storage(sbt.storage())
@@ -30,7 +29,7 @@ fn find_small_bench(c: &mut Criterion) {
 
     let mut bigsi = BIGSI::new(10000, 10);
     for l in &sbt.datasets() {
-        let data = l.data(&*sbt.storage()).unwrap();
+        let data = l.data().unwrap();
         bigsi.insert(data);
     }
 
@@ -49,7 +48,7 @@ fn find_small_bench(c: &mut Criterion) {
     let bigsi_find = Fun::new(
         "bigsi_search",
         move |b: &mut Bencher, leaf: &Dataset<Signature>| {
-            let data = leaf.data(&*storage).unwrap();
+            let data = leaf.data().unwrap();
             b.iter(|| bigsi.search(data, 0.1, false))
         },
     );
@@ -65,7 +64,6 @@ fn find_subset_bench(c: &mut Criterion) {
     let sbt = MHBT::from_path(filename).expect("Loading error");
 
     let leaf: Dataset<Signature> = (*sbt.datasets().first().unwrap()).clone();
-    let storage = sbt.storage();
 
     let mut linear = LinearIndexBuilder::default()
         .storage(sbt.storage())
@@ -77,7 +75,7 @@ fn find_subset_bench(c: &mut Criterion) {
 
     let mut bigsi = BIGSI::new(10000, 10);
     for l in &sbt.datasets() {
-        let data = l.data(&*sbt.storage()).unwrap();
+        let data = l.data().unwrap();
         bigsi.insert(data);
     }
 
@@ -96,7 +94,7 @@ fn find_subset_bench(c: &mut Criterion) {
     let bigsi_find = Fun::new(
         "bigsi_search",
         move |b: &mut Bencher, leaf: &Dataset<Signature>| {
-            let data = leaf.data(&*storage).unwrap();
+            let data = leaf.data().unwrap();
             b.iter(|| bigsi.search(data, 0.1, false))
         },
     );

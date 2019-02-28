@@ -31,7 +31,7 @@ impl<L> BIGSI<L> {
         let mut matrix = Vec::with_capacity(bf_size);
         for _ in 0..bf_size {
             // TODO: figure initial capacity for each row
-            matrix.push(FixedBitSet::with_capacity(32));
+            matrix.push(FixedBitSet::with_capacity(100));
         }
 
         BIGSI {
@@ -53,13 +53,14 @@ impl BIGSI<Signature> {
         }
 
         self.datasets.push(dataset);
+        let col = self.datasets.len() - 1;
 
         for pos in ng.bs[0].ones() {
             let bs = &mut self.matrix[pos];
-            if bs.len() < self.datasets.len() {
-                bs.grow(bs.len() + bs.len() / 2);
+            if bs.len() == col {
+                bs.grow(col + col / 2);
             }
-            bs.insert(self.datasets.len() - 1);
+            bs.insert(col);
         }
     }
 
@@ -172,7 +173,7 @@ mod test {
         let leaf = &datasets[0];
 
         for l in &datasets {
-            let data = l.data(&*sbt.storage()).unwrap();
+            let data = l.data().unwrap();
             bigsi.insert(data);
         }
 

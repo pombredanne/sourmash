@@ -18,7 +18,7 @@ use failure::Error;
 use lazy_init::Lazy;
 
 use crate::index::search::{search_minhashes, search_minhashes_containment};
-use crate::index::storage::{ReadData, Storage};
+use crate::index::storage::{ReadData, ReadDataError, Storage};
 use crate::Signature;
 
 pub trait Index {
@@ -110,70 +110,54 @@ where
     }
 }
 
-impl<S: Storage + ?Sized> ReadData<Signature, S> for Dataset<Signature> {
-    fn data(&self, storage: &S) -> Result<&Signature, Error> {
-        let sig = self.data.get_or_create(|| {
-            let raw = storage.load(&self.filename).unwrap();
-            let sigs: Vec<Signature> = serde_json::from_reader(&mut &raw[..]).unwrap();
-            // TODO: select the right sig?
-            sigs[0].to_owned()
-        });
+impl ReadData<Signature> for Dataset<Signature> {
+    fn data(&self) -> Result<&Signature, Error> {
+        if let Some(storage) = &self.storage {
+            let sig = self.data.get_or_create(|| {
+                let raw = storage.load(&self.filename).unwrap();
+                let sigs: Vec<Signature> = serde_json::from_reader(&mut &raw[..]).unwrap();
+                // TODO: select the right sig?
+                sigs[0].to_owned()
+            });
 
-        Ok(sig)
+            Ok(sig)
+        } else {
+            Err(ReadDataError::LoadError.into())
+        }
     }
 }
 
 impl Dataset<Signature> {
     pub fn count_common(&self, other: &Dataset<Signature>) -> u64 {
-        if let Some(storage) = &self.storage {
-            let ng: &Signature = self.data(&**storage).unwrap();
-            let ong: &Signature = other.data(&**storage).unwrap();
+        let ng: &Signature = self.data().unwrap();
+        let ong: &Signature = other.data().unwrap();
 
-            // TODO: select the right signatures...
-            ng.signatures[0].count_common(&ong.signatures[0]).unwrap() as u64
-        } else {
-            0
-        }
+        // TODO: select the right signatures...
+        ng.signatures[0].count_common(&ong.signatures[0]).unwrap() as u64
     }
 
     pub fn mins(&self) -> Vec<u64> {
-        if let Some(storage) = &self.storage {
-            let ng: &Signature = self.data(&**storage).unwrap();
-            ng.signatures[0].mins.to_vec()
-        } else {
-            Vec::new()
-        }
+        let ng: &Signature = self.data().unwrap();
+        ng.signatures[0].mins.to_vec()
     }
 }
 
 impl Comparable<Dataset<Signature>> for Dataset<Signature> {
     fn similarity(&self, other: &Dataset<Signature>) -> f64 {
-        if let Some(storage) = &self.storage {
-            let ng: &Signature = self.data(&**storage).unwrap();
-            let ong: &Signature = other.data(&**storage).unwrap();
+        let ng: &Signature = self.data().unwrap();
+        let ong: &Signature = other.data().unwrap();
 
-            // TODO: select the right signatures...
-            ng.signatures[0].compare(&ong.signatures[0]).unwrap()
-        } else {
-            // TODO: in this case storage is not set up,
-            // so we should throw an error?
-            0.0
-        }
+        // TODO: select the right signatures...
+        ng.signatures[0].compare(&ong.signatures[0]).unwrap()
     }
 
     fn containment(&self, other: &Dataset<Signature>) -> f64 {
-        if let Some(storage) = &self.storage {
-            let ng: &Signature = self.data(&**storage).unwrap();
-            let ong: &Signature = other.data(&**storage).unwrap();
+        let ng: &Signature = self.data().unwrap();
+        let ong: &Signature = other.data().unwrap();
 
-            // TODO: select the right signatures...
-            let common = ng.signatures[0].count_common(&ong.signatures[0]).unwrap();
-            let size = ng.signatures[0].mins.len();
-            common as f64 / size as f64
-        } else {
-            // TODO: in this case storage is not set up,
-            // so we should throw an error?
-            0.0
-        }
+        // TODO: select the right signatures...
+        let common = ng.signatures[0].count_common(&ong.signatures[0]).unwrap();
+        let size = ng.signatures[0].mins.len();
+        common as f64 / size as f64
     }
 }
