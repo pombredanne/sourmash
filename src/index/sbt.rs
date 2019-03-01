@@ -4,7 +4,7 @@ use std::hash::{BuildHasherDefault, Hasher};
 use std::io::{BufReader, Read};
 use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::sync::Arc;
 
 use derive_builder::Builder;
 use failure::Error;
@@ -23,7 +23,7 @@ pub struct SBT<N, L> {
     #[builder(default = "2")]
     d: u32,
 
-    storage: Rc<dyn Storage>,
+    storage: Arc<dyn Storage>,
 
     #[builder(setter(skip))]
     factory: Factory,
@@ -60,8 +60,8 @@ where
         self.leaves.values().cloned().collect()
     }
 
-    pub fn storage(&self) -> Rc<dyn Storage> {
-        Rc::clone(&self.storage)
+    pub fn storage(&self) -> Arc<dyn Storage> {
+        Arc::clone(&self.storage)
     }
 
     // combine
@@ -69,8 +69,8 @@ where
 
 impl<T, U> SBT<Node<U>, Leaf<T>>
 where
-    T: std::marker::Sync,
-    U: std::marker::Sync,
+    T: std::marker::Sync + Send,
+    U: std::marker::Sync + Send,
 {
     pub fn from_reader<R, P>(rdr: &mut R, path: P) -> Result<SBT<Node<U>, Leaf<T>>, Error>
     where
@@ -85,12 +85,12 @@ where
         basepath.push(path);
         basepath.push(&sbt.storage.args["path"]);
 
-        let storage: Rc<dyn Storage> = Rc::new(FSStorage { basepath });
+        let storage: Arc<dyn Storage> = Arc::new(FSStorage { basepath });
 
         Ok(SBT {
             d: sbt.d,
             factory: sbt.factory,
-            storage: Rc::clone(&storage),
+            storage: Arc::clone(&storage),
             nodes: sbt
                 .nodes
                 .into_iter()
@@ -99,8 +99,8 @@ where
                         filename: l.filename,
                         name: l.name,
                         metadata: l.metadata,
-                        storage: Some(Rc::clone(&storage)),
-                        data: Rc::new(Lazy::new()),
+                        storage: Some(Arc::clone(&storage)),
+                        data: Arc::new(Lazy::new()),
                     };
                     (n, new_node)
                 })
@@ -113,8 +113,8 @@ where
                         filename: l.filename,
                         name: l.name,
                         metadata: l.metadata,
-                        storage: Some(Rc::clone(&storage)),
-                        data: Rc::new(Lazy::new()),
+                        storage: Some(Arc::clone(&storage)),
+                        data: Arc::new(Lazy::new()),
                     };
                     (n, new_node)
                 })
@@ -199,9 +199,9 @@ where
     filename: String,
     name: String,
     metadata: HashMap<String, u64>,
-    storage: Option<Rc<dyn Storage>>,
+    storage: Option<Arc<dyn Storage>>,
     #[builder(setter(skip))]
-    pub(crate) data: Rc<Lazy<T>>,
+    pub(crate) data: Arc<Lazy<T>>,
 }
 
 impl Comparable<Node<Nodegraph>> for Node<Nodegraph> {
@@ -442,7 +442,7 @@ where
 
     // save the new tree
 
-    let storage: Rc<dyn Storage> = Rc::new(FSStorage {
+    let storage: Arc<dyn Storage> = Arc::new(FSStorage {
         basepath: ".sbt".into(),
     });
 
@@ -551,11 +551,11 @@ mod test {
         println!("leaf: {:?}", leaf);
 
         let mut linear = LinearIndexBuilder::default()
-            .storage(Rc::clone(&sbt.storage) as Rc<dyn Storage>)
+            .storage(Arc::clone(&sbt.storage) as Arc<dyn Storage>)
             .build()
             .unwrap();
-        for l in &sbt.leaves {
-            linear.insert(l.1);
+        for (_, l) in &sbt.leaves {
+            linear.insert(l);
         }
 
         println!(

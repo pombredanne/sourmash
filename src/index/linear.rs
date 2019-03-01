@@ -1,8 +1,9 @@
 use std::path::Path;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use derive_builder::Builder;
 use failure::Error;
+use rayon::prelude::*;
 
 use crate::index::storage::Storage;
 use crate::index::{Comparable, Index};
@@ -10,7 +11,7 @@ use crate::index::{Comparable, Index};
 #[derive(Builder)]
 pub struct LinearIndex<L> {
     //#[builder(setter(skip))]
-    storage: Rc<dyn Storage>,
+    storage: Arc<dyn Storage>,
 
     #[builder(setter(skip))]
     pub(crate) leaves: Vec<L>,
@@ -18,7 +19,7 @@ pub struct LinearIndex<L> {
 
 impl<L> Index for LinearIndex<L>
 where
-    L: Clone + Comparable<L>,
+    L: Clone + Comparable<L> + Send + Sync,
 {
     type Item = L;
 
@@ -29,11 +30,11 @@ where
         threshold: f64,
     ) -> Result<Vec<&Self::Item>, Error>
     where
-        F: Fn(&dyn Comparable<Self::Item>, &Self::Item, f64) -> bool,
+        F: Fn(&dyn Comparable<Self::Item>, &Self::Item, f64) -> bool + Send + Sync,
     {
         Ok(self
             .leaves
-            .iter()
+            .par_iter()
             .flat_map(|node| {
                 if search_fn(node, sig, threshold) {
                     Some(node)

@@ -9,7 +9,7 @@ pub mod linear;
 pub mod search;
 
 use std::path::Path;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use serde_derive::Deserialize;
 
@@ -30,7 +30,7 @@ pub trait Index {
         threshold: f64,
     ) -> Result<Vec<&Self::Item>, Error>
     where
-        F: Fn(&dyn Comparable<Self::Item>, &Self::Item, f64) -> bool;
+        F: Fn(&dyn Comparable<Self::Item>, &Self::Item, f64) -> bool + Send + Sync;
 
     fn insert(&mut self, node: &Self::Item);
 
@@ -68,20 +68,20 @@ pub struct LeafInfo {
 #[derive(Builder, Default, Clone)]
 pub struct Leaf<T>
 where
-    T: std::marker::Sync,
+    T: std::marker::Sync + Send,
 {
     pub(crate) filename: String,
     pub(crate) name: String,
     pub(crate) metadata: String,
 
-    pub(crate) storage: Option<Rc<dyn Storage>>,
+    pub(crate) storage: Option<Arc<dyn Storage>>,
 
-    pub(crate) data: Rc<Lazy<T>>,
+    pub(crate) data: Arc<Lazy<T>>,
 }
 
 impl<T> std::fmt::Debug for Leaf<T>
 where
-    T: std::marker::Sync,
+    T: std::marker::Sync + Send,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

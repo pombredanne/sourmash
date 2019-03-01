@@ -19,7 +19,7 @@ pub(crate) struct StorageInfo {
 }
 
 /// An abstraction for any place where we can store data.
-pub trait Storage {
+pub trait Storage: Send + Sync {
     /// Save bytes into path
     fn save(&mut self, path: &str, content: &[u8]) -> Result<(), Error>;
 
