@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::hash::{BuildHasherDefault, Hasher};
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Read};
 use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -12,7 +12,6 @@ use lazy_init::Lazy;
 use serde_derive::{Deserialize, Serialize};
 
 use crate::index::nodegraph::Nodegraph;
-use crate::index::search::search_minhashes;
 use crate::index::storage::{FSStorage, ReadData, ReadDataError, Storage, StorageInfo};
 use crate::index::{Comparable, Dataset, DatasetInfo, Index};
 use crate::Signature;
@@ -34,6 +33,14 @@ pub struct SBT<N, L> {
     leaves: HashMap<u64, L>,
 }
 
+const fn parent(pos: u64, d: u64) -> u64 {
+    ((pos - 1) / d) as u64
+}
+
+const fn child(parent: u64, pos: u64, d: u64) -> u64 {
+    d * parent + pos + 1
+}
+
 impl<N, L> SBT<N, L>
 where
     L: std::clone::Clone,
@@ -43,13 +50,13 @@ where
         if pos == 0 {
             None
         } else {
-            Some((pos - 1) / (u64::from(self.d)))
+            Some(parent(pos, self.d as u64))
         }
     }
 
     #[inline(always)]
     fn child(&self, parent: u64, pos: u64) -> u64 {
-        u64::from(self.d) * parent + pos + 1
+        child(parent, pos, self.d as u64)
     }
 
     #[inline(always)]
