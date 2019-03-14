@@ -1,4 +1,9 @@
+use std::fmt;
+use std::fmt::Display;
+
 use failure::{Error, Fail};
+use serde::de;
+use serde::ser;
 
 #[derive(Debug, Fail)]
 pub enum SourmashError {
@@ -23,6 +28,9 @@ pub enum SourmashError {
 
     #[fail(display = "invalid protein character in input: {}", message)]
     InvalidProt { message: String },
+
+    #[fail(display = "Error from deserialization")]
+    SerdeError,
 }
 
 #[repr(u32)]
@@ -66,6 +74,7 @@ impl SourmashErrorCode {
                     SourmashError::MismatchSeed => SourmashErrorCode::MismatchSeed,
                     SourmashError::InvalidDNA { .. } => SourmashErrorCode::InvalidDNA,
                     SourmashError::InvalidProt { .. } => SourmashErrorCode::InvalidProt,
+                    SourmashError::SerdeError => SourmashErrorCode::SerdeError,
                 };
             }
         }

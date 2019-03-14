@@ -5,6 +5,8 @@ pub mod utils;
 
 pub mod index;
 
+pub mod signatures;
+
 #[cfg(feature = "from-finch")]
 pub mod from;
 

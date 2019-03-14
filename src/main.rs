@@ -187,6 +187,19 @@ fn main() -> Result<(), ExitFailure> {
     let m = App::from_yaml(yml).get_matches();
 
     match m.subcommand_name() {
+        Some("draff") => {
+            let cmd = m.subcommand_matches("draff").unwrap();
+            let inputs = cmd
+                .values_of("inputs")
+                .map(|vals| vals.collect::<Vec<_>>())
+                .unwrap();
+
+            let ksize: usize = cmd.value_of("ksize").unwrap().parse().unwrap();
+            let wsize: usize = cmd.value_of("wsize").unwrap().parse().unwrap();
+
+            println!("{:?} {} {}", inputs, ksize, wsize);
+            Ok(())
+        }
         Some("scaffold") => {
             let cmd = m.subcommand_matches("scaffold").unwrap();
             let sbt_file = cmd.value_of("current_sbt").unwrap();
