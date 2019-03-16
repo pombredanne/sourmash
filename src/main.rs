@@ -1,14 +1,16 @@
 use std::fs::File;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use bio::io::fasta;
 use clap::{load_yaml, App};
 use exitfailure::ExitFailure;
 use failure::{Error, ResultExt};
 use human_panic::setup_panic;
 use lazy_init::Lazy;
 use log::{debug, error, info, LevelFilter};
+use ocf::{get_input, get_output, CompressionFormat};
 
 use sourmash::index::{Dataset, DatasetBuilder, Index. Comparable};
 use sourmash::index::nodegraph::Nodegraph;
@@ -16,6 +18,7 @@ use sourmash::index::sbt::{scaffold, Node, MHBT, SBT};
 use sourmash::index::search::{
     search_minhashes, search_minhashes_containment, search_minhashes_find_best,
 };
+use sourmash::signatures::ukhs::UKHS;
 use sourmash::Signature;
 
 struct Query<T> {
@@ -178,6 +181,34 @@ fn search_databases(
     Ok(results)
 }
 
+fn draff_signature(files: Vec<&str>, k: usize, w: usize) -> Result<(), Error> {
+    let mut ukhs = UKHS::new(k, w)?;
+
+    for filename in files {
+        // TODO: check for stdin?
+
+        info!("Build signature for {} with W={}, W={}...", filename, w, k);
+
+        let (input, _) = get_input(filename)?;
+        let reader = fasta::Reader::new(input);
+
+        ukhs.reset();
+        for record in reader.records() {
+            ukhs.add_sequence(record?.seq(), false)?;
+        }
+
+        let mut outfile = PathBuf::from(filename);
+        outfile.set_extension("sig");
+
+        let mut output = get_output(outfile.to_str().unwrap(), CompressionFormat::No)?;
+
+        ukhs.to_writer(&mut output)?
+    }
+    info!("Done.");
+
+    Ok(())
+}
+
 fn main() -> Result<(), ExitFailure> {
     //setup_panic!();
 
@@ -197,8 +228,7 @@ fn main() -> Result<(), ExitFailure> {
             let ksize: usize = cmd.value_of("ksize").unwrap().parse().unwrap();
             let wsize: usize = cmd.value_of("wsize").unwrap().parse().unwrap();
 
-            println!("{:?} {} {}", inputs, ksize, wsize);
-            Ok(())
+            Ok(draff_signature(inputs, ksize, wsize)?)
         }
         Some("scaffold") => {
             let cmd = m.subcommand_matches("scaffold").unwrap();

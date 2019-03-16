@@ -26,6 +26,10 @@ impl UKHS {
         })
     }
 
+    pub fn reset(&mut self) {
+        self.buckets = vec![0; self.ukhs.len()];
+    }
+
     pub fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error> {
         let it: Vec<(u64, u64)> = self.ukhs.hash_iter_sequence(seq)?.collect();
 
@@ -51,7 +55,7 @@ impl UKHS {
 
     pub fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
     where
-        W: Write + std::fmt::Debug,
+        W: Write,
     {
         if let Ok(_) = serde_json::to_writer(writer, &self) {
             Ok(())
