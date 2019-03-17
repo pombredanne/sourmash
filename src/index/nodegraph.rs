@@ -5,10 +5,11 @@ use std::path::Path;
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use failure::Error;
 use fixedbitset::FixedBitSet;
+use primal;
 
 use crate::HashIntoType;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Nodegraph {
     pub(crate) bs: Vec<FixedBitSet>,
     ksize: usize,
@@ -29,6 +30,16 @@ impl Nodegraph {
             occupied_bins: 0,
             unique_kmers: 0,
         }
+    }
+
+    pub fn with_tables(tablesize: usize, n_tables: usize, ksize: usize) -> Nodegraph {
+        // TODO: cache the Sieve somewhere for repeated calls?
+        let tablesizes: Vec<usize> = primal::Primes::all()
+            .filter(|p| *p >= tablesize)
+            .take(n_tables)
+            .collect();
+
+        Nodegraph::new(&tablesizes, ksize)
     }
 
     pub fn count(&mut self, hash: HashIntoType) -> bool {

@@ -18,7 +18,7 @@ use sourmash::index::sbt::{scaffold, Node, MHBT, SBT};
 use sourmash::index::search::{
     search_minhashes, search_minhashes_containment, search_minhashes_find_best,
 };
-use sourmash::signatures::ukhs::UKHS;
+use sourmash::signatures::ukhs::{FlatUKHS, FullUKHS, UKHSTrait};
 use sourmash::Signature;
 
 struct Query<T> {
@@ -182,17 +182,16 @@ fn search_databases(
 }
 
 fn draff_signature(files: Vec<&str>, k: usize, w: usize) -> Result<(), Error> {
-    let mut ukhs = UKHS::new(k, w)?;
-
     for filename in files {
         // TODO: check for stdin?
+
+        let mut ukhs = FullUKHS::new(k, w)?;
 
         info!("Build signature for {} with W={}, W={}...", filename, w, k);
 
         let (input, _) = get_input(filename)?;
         let reader = fasta::Reader::new(input);
 
-        ukhs.reset();
         for record in reader.records() {
             ukhs.add_sequence(record?.seq(), false)?;
         }
@@ -202,7 +201,8 @@ fn draff_signature(files: Vec<&str>, k: usize, w: usize) -> Result<(), Error> {
 
         let mut output = get_output(outfile.to_str().unwrap(), CompressionFormat::No)?;
 
-        ukhs.to_writer(&mut output)?
+        let flat: FlatUKHS = ukhs.into();
+        flat.to_writer(&mut output)?
     }
     info!("Done.");
 
