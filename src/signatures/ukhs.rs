@@ -1,23 +1,29 @@
 use std::fs::File;
+use std::hash::BuildHasherDefault;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
 use failure::Error;
+use itertools::Itertools;
+use pdatastructs::hyperloglog::HyperLogLog;
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
-use serde_derive::{Deserialize, Serialize};
+use serde_derive::Deserialize;
 use ukhs;
 
 use crate::errors::SourmashError;
 use crate::index::nodegraph::Nodegraph;
+use crate::index::sbt::NoHashHasher;
 
 pub struct UKHS<T> {
     ukhs: ukhs::UKHS,
     buckets: Vec<T>,
 }
 
-pub type FullUKHS = UKHS<Nodegraph>;
+pub type HLL = HyperLogLog<u64, BuildHasherDefault<NoHashHasher>>;
+pub type MemberUKHS = UKHS<Nodegraph>;
 pub type FlatUKHS = UKHS<u64>;
+pub type UniqueUKHS = UKHS<HLL>;
 
 pub trait UKHSTrait {
     type Storage;
@@ -78,11 +84,19 @@ impl UKHSTrait for UKHS<u64> {
     fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error> {
         let it: Vec<(u64, u64)> = self.ukhs.hash_iter_sequence(seq)?.collect();
 
+        /* This one update every unikmer bucket with w_hash
         it.into_iter()
             .map(|(_, k_hash)| {
                 self.buckets[self.ukhs.query_bucket(k_hash).unwrap()] += 1;
             })
             .count();
+        */
+
+        // Only update the bucket for the minimum unikmer found
+        for (_, group) in &it.into_iter().group_by(|(w, _)| *w) {
+            let (_, unikmer) = group.min().unwrap();
+            self.buckets[self.ukhs.query_bucket(unikmer).unwrap()] += 1;
+        }
 
         Ok(())
     }
@@ -116,17 +130,25 @@ impl UKHSTrait for UKHS<Nodegraph> {
     }
 
     fn reset(&mut self) {
-        self.buckets = vec![Nodegraph::with_tables(100000, 4, self.ukhs.W()); self.ukhs.len()];
+        self.buckets = vec![Nodegraph::with_tables(100000, 4, self.ukhs.w()); self.ukhs.len()];
     }
 
     fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error> {
         let it: Vec<(u64, u64)> = self.ukhs.hash_iter_sequence(seq)?.collect();
 
+        /* This one update every unikmer bucket with w_hash
         it.into_iter()
             .map(|(w_hash, k_hash)| {
                 self.buckets[self.ukhs.query_bucket(k_hash).unwrap()].count(w_hash);
             })
             .count();
+            */
+
+        // Only update the bucket for the minimum unikmer found
+        for (w_hash, group) in &it.into_iter().group_by(|(w, _)| *w) {
+            let (_, unikmer) = group.min().unwrap();
+            self.buckets[self.ukhs.query_bucket(unikmer).unwrap()].count(w_hash);
+        }
 
         Ok(())
     }
@@ -152,8 +174,8 @@ impl UKHSTrait for UKHS<Nodegraph> {
     }
 }
 
-impl From<FullUKHS> for FlatUKHS {
-    fn from(other: FullUKHS) -> Self {
+impl From<MemberUKHS> for FlatUKHS {
+    fn from(other: MemberUKHS) -> Self {
         let buckets = other.to_vec(); // TODO: implement into_vec?
         let ukhs = other.ukhs;
 
@@ -161,10 +183,89 @@ impl From<FullUKHS> for FlatUKHS {
     }
 }
 
-impl From<&FullUKHS> for FlatUKHS {
-    fn from(other: &FullUKHS) -> Self {
+impl From<&MemberUKHS> for FlatUKHS {
+    fn from(other: &MemberUKHS) -> Self {
         // TODO: implement clone for ukhs::UKHS?
-        let wk_ukhs = ukhs::UKHS::new(other.ukhs.K(), other.ukhs.W()).unwrap();
+        let wk_ukhs = ukhs::UKHS::new(other.ukhs.k(), other.ukhs.w()).unwrap();
+
+        FlatUKHS {
+            ukhs: wk_ukhs,
+            buckets: other.to_vec(), // TODO: also implement into_vec?
+        }
+    }
+}
+
+impl UKHSTrait for UKHS<HLL> {
+    type Storage = HLL;
+
+    fn new(ksize: usize, wsize: usize) -> Result<Self, Error> {
+        let wk_ukhs = ukhs::UKHS::new(ksize, wsize)?;
+        let len = wk_ukhs.len();
+
+        let bh = BuildHasherDefault::<NoHashHasher>::default();
+
+        Ok(UKHS {
+            ukhs: wk_ukhs,
+            buckets: vec![HLL::with_hash(14, bh); len], // TODO: space usage is 2^b
+        })
+    }
+
+    fn reset(&mut self) {
+        let bh = BuildHasherDefault::<NoHashHasher>::default();
+        self.buckets = vec![HLL::with_hash(14, bh); self.ukhs.len()];
+    }
+
+    fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error> {
+        let it: Vec<(u64, u64)> = self.ukhs.hash_iter_sequence(seq)?.collect();
+
+        /* This one update every unikmer bucket with w_hash
+        it.into_iter()
+            .map(|(w_hash, k_hash)| {
+                self.buckets[self.ukhs.query_bucket(k_hash).unwrap()].add(&w_hash);
+            })
+            .count();
+        */
+
+        // Only update the bucket for the minimum unikmer found
+        for (w_hash, group) in &it.into_iter().group_by(|(w, _)| *w) {
+            let (_, unikmer) = group.min().unwrap();
+            self.buckets[self.ukhs.query_bucket(unikmer).unwrap()].add(&w_hash);
+        }
+
+        Ok(())
+    }
+
+    fn to_vec(&self) -> Vec<u64> {
+        self.buckets.iter().map(|b| b.count() as u64).collect()
+    }
+
+    fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        // TODO: avoid cloning?
+        let flat: FlatUKHS = self.into();
+
+        match serde_json::to_writer(writer, &flat) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(SourmashError::SerdeError.into()),
+        }
+    }
+}
+
+impl From<UniqueUKHS> for FlatUKHS {
+    fn from(other: UniqueUKHS) -> Self {
+        let buckets = other.to_vec(); // TODO: implement into_vec?
+        let ukhs = other.ukhs;
+
+        FlatUKHS { ukhs, buckets }
+    }
+}
+
+impl From<&UniqueUKHS> for FlatUKHS {
+    fn from(other: &UniqueUKHS) -> Self {
+        // TODO: implement clone for ukhs::UKHS?
+        let wk_ukhs = ukhs::UKHS::new(other.ukhs.k(), other.ukhs.w()).unwrap();
 
         FlatUKHS {
             ukhs: wk_ukhs,
@@ -184,8 +285,8 @@ impl Serialize for UKHS<u64> {
 
         let mut partial = serializer.serialize_struct("UKHS", n_fields)?;
         partial.serialize_field("signature", &buckets)?;
-        partial.serialize_field("W", &self.ukhs.W())?;
-        partial.serialize_field("K", &self.ukhs.K())?;
+        partial.serialize_field("W", &self.ukhs.w())?;
+        partial.serialize_field("K", &self.ukhs.k())?;
         partial.serialize_field("size", &self.buckets.len())?;
         partial.serialize_field("name", "".into())?;
 
@@ -204,16 +305,18 @@ impl<'de> Deserialize<'de> for UKHS<u64> {
         #[derive(Deserialize)]
         struct TempUKHS {
             signature: Vec<u64>,
-            K: usize,
-            W: usize,
-            size: usize,
-            name: String,
+            #[serde(rename = "K")]
+            k: usize,
+            #[serde(rename = "W")]
+            w: usize,
+            //size: usize,
+            //name: String,
         }
 
         let tmpukhs = TempUKHS::deserialize(deserializer)?;
 
         //TODO: remove this unwrap, need to map Failure error to serde error?
-        let mut u = UKHS::<u64>::new(tmpukhs.K, tmpukhs.W).unwrap();
+        let mut u = UKHS::<u64>::new(tmpukhs.k, tmpukhs.w).unwrap();
 
         u.buckets = tmpukhs.signature;
 
@@ -232,8 +335,8 @@ where
             .iter()
             .zip(other.buckets.iter())
             .all(|(b1, b2)| b1 == b2)
-            && self.ukhs.W() == other.ukhs.W()
-            && self.ukhs.K() == self.ukhs.K()
+            && self.ukhs.w() == other.ukhs.w()
+            && self.ukhs.k() == self.ukhs.k()
     }
 }
 
@@ -252,7 +355,7 @@ mod test {
         let mut filename = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         filename.push("tests/test-data/ecoli.genes.fna");
 
-        let mut ukhs = FullUKHS::new(9, 21).unwrap();
+        let mut ukhs = MemberUKHS::new(9, 21).unwrap();
 
         let (mut input, _) = get_input(filename.to_str().unwrap()).unwrap();
         let reader = Reader::new(input);

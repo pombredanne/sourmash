@@ -18,7 +18,8 @@ use sourmash::index::sbt::{scaffold, Node, MHBT, SBT};
 use sourmash::index::search::{
     search_minhashes, search_minhashes_containment, search_minhashes_find_best,
 };
-use sourmash::signatures::ukhs::{FlatUKHS, FullUKHS, UKHSTrait};
+use sourmash::index::{Comparable, Index, Leaf, LeafBuilder};
+use sourmash::signatures::ukhs::{FlatUKHS, MemberUKHS, UKHSTrait, UniqueUKHS};
 use sourmash::Signature;
 
 struct Query<T> {
@@ -185,9 +186,9 @@ fn draff_signature(files: Vec<&str>, k: usize, w: usize) -> Result<(), Error> {
     for filename in files {
         // TODO: check for stdin?
 
-        let mut ukhs = FullUKHS::new(k, w)?;
+        let mut ukhs = MemberUKHS::new(k, w)?;
 
-        info!("Build signature for {} with W={}, W={}...", filename, w, k);
+        info!("Build signature for {} with W={}, K={}...", filename, w, k);
 
         let (input, _) = get_input(filename)?;
         let reader = fasta::Reader::new(input);
