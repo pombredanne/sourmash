@@ -12,13 +12,12 @@ use lazy_init::Lazy;
 use log::{debug, error, info, LevelFilter};
 use ocf::{get_input, get_output, CompressionFormat};
 
-use sourmash::index::{Dataset, DatasetBuilder, Index. Comparable};
 use sourmash::index::nodegraph::Nodegraph;
 use sourmash::index::sbt::{scaffold, Node, MHBT, SBT};
 use sourmash::index::search::{
     search_minhashes, search_minhashes_containment, search_minhashes_find_best,
 };
-use sourmash::index::{Comparable, Index, Leaf, LeafBuilder};
+use sourmash::index::{Comparable, Dataset, DatasetBuilder, Index};
 use sourmash::signatures::ukhs::{FlatUKHS, MemberUKHS, UKHSTrait, UniqueUKHS};
 use sourmash::Signature;
 

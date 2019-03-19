@@ -161,8 +161,8 @@ impl Comparable<Dataset<Signature>> for Dataset<Signature> {
     fn similarity(&self, other: &Dataset<Signature>) -> f64 {
         let mut sim = 0.0;
         if let Some(storage) = &self.storage {
-            let ng: &Signature = self.data(&**storage).unwrap();
-            let ong: &Signature = other.data(&**storage).unwrap();
+            let ng: &Signature = self.data().unwrap();
+            let ong: &Signature = other.data().unwrap();
 
             // TODO: select the right signatures...
             sim = ng.signatures[0].compare(&ong.signatures[0]).unwrap()
