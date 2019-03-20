@@ -130,6 +130,8 @@ impl ReadData<Signature> for Dataset<Signature> {
             });
 
             Ok(sig)
+        } else if let Some(sig) = self.data.get() {
+            Ok(sig)
         } else {
             Err(ReadDataError::LoadError.into())
         }
@@ -159,19 +161,11 @@ impl From<Dataset<Signature>> for Signature {
 
 impl Comparable<Dataset<Signature>> for Dataset<Signature> {
     fn similarity(&self, other: &Dataset<Signature>) -> f64 {
-        let mut sim = 0.0;
-        if let Some(storage) = &self.storage {
-            let ng: &Signature = self.data().unwrap();
-            let ong: &Signature = other.data().unwrap();
+        let ng: &Signature = self.data().unwrap();
+        let ong: &Signature = other.data().unwrap();
 
-            // TODO: select the right signatures...
-            sim = ng.signatures[0].compare(&ong.signatures[0]).unwrap()
-        } else if let Some(ng) = self.data.get() {
-            if let Some(ong) = other.data.get() {
-                sim = ng.signatures[0].compare(&ong.signatures[0]).unwrap()
-            }
-        }
-        sim
+        // TODO: select the right signatures...
+        ng.signatures[0].compare(&ong.signatures[0]).unwrap()
     }
 
     fn containment(&self, other: &Dataset<Signature>) -> f64 {

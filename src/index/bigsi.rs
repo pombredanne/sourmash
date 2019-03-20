@@ -154,12 +154,18 @@ impl Index for BIGSI<Signature> {
 
 #[cfg(test)]
 mod test {
+    use std::fs::File;
+    use std::io::BufReader;
     use std::path::PathBuf;
+    use std::rc::Rc;
+
+    use lazy_init::Lazy;
 
     use super::*;
 
     use crate::index::sbt::MHBT;
     use crate::index::storage::ReadData;
+    use crate::index::DatasetBuilder;
 
     #[test]
     fn bigsi_sbt_oracle() {
@@ -170,7 +176,25 @@ mod test {
 
         let mut bigsi = BIGSI::new(10000, 10);
         let datasets = sbt.datasets();
-        let leaf = &datasets[0];
+
+        let mut filename = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        filename.push("tests/test-data/.sbt.v3/60f7e23c24a8d94791cc7a8680c493f9");
+
+        let mut reader = BufReader::new(File::open(filename).unwrap());
+        let sigs = Signature::load_signatures(&mut reader, 31, Some("DNA".into()), None).unwrap();
+        let sig_data = sigs[0].clone();
+
+        let data = Lazy::new();
+        data.get_or_create(|| sig_data);
+
+        let leaf = DatasetBuilder::default()
+            .data(Rc::new(data))
+            .filename("".into())
+            .name("".into())
+            .metadata("".into())
+            .storage(None)
+            .build()
+            .unwrap();
 
         for l in &datasets {
             let data = l.data().unwrap();

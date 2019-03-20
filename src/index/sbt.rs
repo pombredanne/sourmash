@@ -561,6 +561,7 @@ mod test {
     use super::*;
     use crate::index::linear::{LinearIndex, LinearIndexBuilder};
     use crate::index::search::{search_minhashes, search_minhashes_containment};
+    use crate::index::DatasetBuilder;
 
     #[test]
     fn save_sbt() {
@@ -592,7 +593,24 @@ mod test {
 
         println!("sbt leaves {:?} {:?}", sbt.leaves.len(), sbt.leaves);
 
-        let leaf = &sbt.leaves[&7];
+        let mut filename = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        filename.push("tests/test-data/.sbt.v3/60f7e23c24a8d94791cc7a8680c493f9");
+
+        let mut reader = BufReader::new(File::open(filename).unwrap());
+        let sigs = Signature::load_signatures(&mut reader, 31, Some("DNA".into()), None).unwrap();
+        let sig_data = sigs[0].clone();
+
+        let data = Lazy::new();
+        data.get_or_create(|| sig_data);
+
+        let leaf = DatasetBuilder::default()
+            .data(Rc::new(data))
+            .filename("".into())
+            .name("".into())
+            .metadata("".into())
+            .storage(None)
+            .build()
+            .unwrap();
 
         let results = sbt.find(search_minhashes, &leaf, 0.5).unwrap();
         assert_eq!(results.len(), 1);
