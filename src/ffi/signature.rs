@@ -18,13 +18,11 @@ pub unsafe extern "C" fn signature_new() -> *mut Signature {
 }
 
 #[no_mangle]
-pub extern "C" fn signature_free(ptr: *mut Signature) {
+pub unsafe extern "C" fn signature_free(ptr: *mut Signature) {
     if ptr.is_null() {
         return;
     }
-    unsafe {
-        Box::from_raw(ptr);
-    }
+    Box::from_raw(ptr);
 }
 
 ffi_fn! {
@@ -221,7 +219,7 @@ unsafe fn signatures_save_buffer(ptr: *mut *mut Signature, size: usize) -> Resul
 
 ffi_fn! {
 unsafe fn signatures_load_path(ptr: *const c_char,
-                               ignore_md5sum: bool,
+                               _ignore_md5sum: bool,
                                ksize: usize,
                                select_moltype: *const c_char,
                                size: *mut usize) -> Result<*mut *mut Signature> {
@@ -256,7 +254,7 @@ unsafe fn signatures_load_path(ptr: *const c_char,
 ffi_fn! {
 unsafe fn signatures_load_buffer(ptr: *const c_char,
                                  insize: usize,
-                                 ignore_md5sum: bool,
+                                 _ignore_md5sum: bool,
                                  ksize: usize,
                                  select_moltype: *const c_char,
                                  size: *mut usize) -> Result<*mut *mut Signature> {

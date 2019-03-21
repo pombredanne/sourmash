@@ -25,13 +25,11 @@ pub unsafe extern "C" fn kmerminhash_new(
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_free(ptr: *mut KmerMinHash) {
+pub unsafe extern "C" fn kmerminhash_free(ptr: *mut KmerMinHash) {
     if ptr.is_null() {
         return;
     }
-    unsafe {
-        Box::from_raw(ptr);
-    }
+    Box::from_raw(ptr);
 }
 
 ffi_fn! {
@@ -52,8 +50,8 @@ unsafe fn kmerminhash_add_sequence(ptr: *mut KmerMinHash, sequence: *const c_cha
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_add_hash(ptr: *mut KmerMinHash, h: u64) {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_add_hash(ptr: *mut KmerMinHash, h: u64) {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -62,12 +60,12 @@ pub extern "C" fn kmerminhash_add_hash(ptr: *mut KmerMinHash, h: u64) {
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_add_word(ptr: *mut KmerMinHash, word: *const c_char) {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_add_word(ptr: *mut KmerMinHash, word: *const c_char) {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    let c_str = unsafe {
+    let c_str = {
         assert!(!word.is_null());
 
         CStr::from_ptr(word)
@@ -114,8 +112,8 @@ unsafe fn kmerminhash_get_min_idx(ptr: *mut KmerMinHash, idx: u64) -> Result<u64
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_get_mins_size(ptr: *mut KmerMinHash) -> usize {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_get_mins_size(ptr: *mut KmerMinHash) -> usize {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -123,8 +121,8 @@ pub extern "C" fn kmerminhash_get_mins_size(ptr: *mut KmerMinHash) -> usize {
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_mins_push(ptr: *mut KmerMinHash, val: u64) {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_mins_push(ptr: *mut KmerMinHash, val: u64) {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -146,8 +144,8 @@ unsafe fn kmerminhash_get_abund_idx(ptr: *mut KmerMinHash, idx: u64) -> Result<u
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_get_abunds_size(ptr: *mut KmerMinHash) -> usize {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_get_abunds_size(ptr: *mut KmerMinHash) -> usize {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -159,8 +157,8 @@ pub extern "C" fn kmerminhash_get_abunds_size(ptr: *mut KmerMinHash) -> usize {
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_abunds_push(ptr: *mut KmerMinHash, val: u64) {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_abunds_push(ptr: *mut KmerMinHash, val: u64) {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -170,8 +168,8 @@ pub extern "C" fn kmerminhash_abunds_push(ptr: *mut KmerMinHash, val: u64) {
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_is_protein(ptr: *mut KmerMinHash) -> bool {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_is_protein(ptr: *mut KmerMinHash) -> bool {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -179,8 +177,8 @@ pub extern "C" fn kmerminhash_is_protein(ptr: *mut KmerMinHash) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_seed(ptr: *mut KmerMinHash) -> u64 {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_seed(ptr: *mut KmerMinHash) -> u64 {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -188,8 +186,8 @@ pub extern "C" fn kmerminhash_seed(ptr: *mut KmerMinHash) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_track_abundance(ptr: *mut KmerMinHash) -> bool {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_track_abundance(ptr: *mut KmerMinHash) -> bool {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -197,8 +195,8 @@ pub extern "C" fn kmerminhash_track_abundance(ptr: *mut KmerMinHash) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_num(ptr: *mut KmerMinHash) -> u32 {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_num(ptr: *mut KmerMinHash) -> u32 {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -206,8 +204,8 @@ pub extern "C" fn kmerminhash_num(ptr: *mut KmerMinHash) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_ksize(ptr: *mut KmerMinHash) -> u32 {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_ksize(ptr: *mut KmerMinHash) -> u32 {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -215,8 +213,8 @@ pub extern "C" fn kmerminhash_ksize(ptr: *mut KmerMinHash) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn kmerminhash_max_hash(ptr: *mut KmerMinHash) -> u64 {
-    let mh = unsafe {
+pub unsafe extern "C" fn kmerminhash_max_hash(ptr: *mut KmerMinHash) -> u64 {
+    let mh = {
         assert!(!ptr.is_null());
         &mut *ptr
     };

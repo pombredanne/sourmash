@@ -12,8 +12,7 @@ use lazy_init::Lazy;
 use log::{debug, error, info, LevelFilter};
 use ocf::{get_input, get_output, CompressionFormat};
 
-use sourmash::index::nodegraph::Nodegraph;
-use sourmash::index::sbt::{scaffold, Node, MHBT, SBT};
+use sourmash::index::sbt::{scaffold, MHBT};
 use sourmash::index::search::{
     search_minhashes, search_minhashes_containment, search_minhashes_find_best,
 };
@@ -28,7 +27,7 @@ struct Query<T> {
 impl Query<Signature> {
     fn ksize(&self) -> u64 {
         // TODO: this might panic
-        self.data.signatures[0].ksize as u64
+        u64::from(self.data.signatures[0].ksize)
     }
 
     fn moltype(&self) -> String {
@@ -50,16 +49,14 @@ impl From<Query<Signature>> for Dataset<Signature> {
         let data = Lazy::new();
         data.get_or_create(|| other.data);
 
-        let leaf = DatasetBuilder::default()
+        DatasetBuilder::default()
             .data(Rc::new(data))
             .filename("".into())
             .name("".into())
             .metadata("".into())
             .storage(None)
             .build()
-            .unwrap();
-
-        leaf
+            .unwrap()
     }
 }
 
@@ -82,21 +79,20 @@ fn load_query_signature(
 struct Database {
     data: MHBT,
     path: String,
-    is_index: bool,
 }
 
 fn load_sbts_and_sigs(
     filenames: &[&str],
     query: &Query<Signature>,
-    containment: bool,
+    _containment: bool,
     traverse: bool,
 ) -> Result<Vec<Database>, Error> {
     let mut dbs = Vec::default();
 
-    let ksize = query.ksize();
-    let moltype = query.moltype();
+    let _ksize = query.ksize();
+    let _moltype = query.moltype();
 
-    let mut n_signatures = 0;
+    let n_signatures = 0;
     let mut n_databases = 0;
 
     for path in filenames {
@@ -109,7 +105,6 @@ fn load_sbts_and_sigs(
             dbs.push(Database {
                 data,
                 path: String::from(*path),
-                is_index: true,
             });
             info!("loaded SBT {}", path);
             n_databases += 1;
@@ -147,7 +142,7 @@ fn search_databases(
     threshold: f64,
     containment: bool,
     best_only: bool,
-    ignore_abundance: bool,
+    _ignore_abundance: bool,
 ) -> Result<Vec<Results>, Error> {
     let mut results = Vec::default();
 
@@ -193,6 +188,7 @@ fn draff_signature(files: Vec<&str>, k: usize, w: usize) -> Result<(), Error> {
         let reader = fasta::Reader::new(input);
 
         for record in reader.records() {
+            // TODO: N in sequence?
             ukhs.add_sequence(record?.seq(), false)?;
         }
 
@@ -228,7 +224,9 @@ fn main() -> Result<(), ExitFailure> {
             let ksize: usize = cmd.value_of("ksize").unwrap().parse().unwrap();
             let wsize: usize = cmd.value_of("wsize").unwrap().parse().unwrap();
 
-            Ok(draff_signature(inputs, ksize, wsize)?)
+            draff_signature(inputs, ksize, wsize)?;
+
+            Ok(())
         }
         Some("scaffold") => {
             let cmd = m.subcommand_matches("scaffold").unwrap();
@@ -237,7 +235,7 @@ fn main() -> Result<(), ExitFailure> {
             let sbt = MHBT::from_path(sbt_file)?;
             let new_sbt: MHBT = scaffold(sbt.datasets());
 
-            new_sbt.save_file("test");
+            new_sbt.save_file("test")?;
 
             assert_eq!(new_sbt.datasets().len(), sbt.datasets().len());
             Ok(())
@@ -282,7 +280,7 @@ fn main() -> Result<(), ExitFailure> {
                 traverse_directory,
             )?;
 
-            if databases.len() == 0 {
+            if databases.is_empty() {
                 return Err(failure::err_msg("Nothing found to search!").into());
             }
 

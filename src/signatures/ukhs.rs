@@ -82,6 +82,7 @@ impl UKHSTrait for UKHS<u64> {
     }
 
     fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error> {
+        // TODO: is seq.len() > W?
         let it: Vec<(u64, u64)> = self.ukhs.hash_iter_sequence(seq)?.collect();
 
         /* This one update every unikmer bucket with w_hash
@@ -125,12 +126,12 @@ impl UKHSTrait for UKHS<Nodegraph> {
 
         Ok(UKHS {
             ukhs: wk_ukhs,
-            buckets: vec![Nodegraph::with_tables(100000, 4, wsize); len],
+            buckets: vec![Nodegraph::with_tables(100_000, 4, wsize); len],
         })
     }
 
     fn reset(&mut self) {
-        self.buckets = vec![Nodegraph::with_tables(100000, 4, self.ukhs.w()); self.ukhs.len()];
+        self.buckets = vec![Nodegraph::with_tables(100_000, 4, self.ukhs.w()); self.ukhs.len()];
     }
 
     fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error> {
@@ -288,7 +289,7 @@ impl Serialize for UKHS<u64> {
         partial.serialize_field("W", &self.ukhs.w())?;
         partial.serialize_field("K", &self.ukhs.k())?;
         partial.serialize_field("size", &self.buckets.len())?;
-        partial.serialize_field("name", "".into())?;
+        partial.serialize_field("name", "")?;
 
         // TODO: properly set name
         //partial.serialize_field("name", &self.name)?;

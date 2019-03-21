@@ -41,7 +41,7 @@ pub struct FSStorage {
 }
 
 impl Storage for FSStorage {
-    fn save(&mut self, path: &str, content: &[u8]) -> Result<(), Error> {
+    fn save(&mut self, _path: &str, _content: &[u8]) -> Result<(), Error> {
         Ok(())
     }
 

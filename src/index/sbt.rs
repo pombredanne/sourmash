@@ -50,13 +50,13 @@ where
         if pos == 0 {
             None
         } else {
-            Some(parent(pos, self.d as u64))
+            Some(parent(pos, u64::from(self.d)))
         }
     }
 
     #[inline(always)]
     fn child(&self, parent: u64, pos: u64) -> u64 {
-        child(parent, pos, self.d as u64)
+        child(parent, pos, u64::from(self.d))
     }
 
     #[inline(always)]
@@ -148,12 +148,12 @@ where
         args.insert("path".into(), ".".into());
         let storage = StorageInfo {
             backend: "FSStorage".into(),
-            args: args,
+            args,
         };
         let info: SBTInfo<NodeInfo, DatasetInfo> = SBTInfo {
             d: self.d,
             factory: self.factory.clone(),
-            storage: storage,
+            storage,
             version: 5,
             nodes: self
                 .nodes
@@ -224,13 +224,13 @@ where
         Ok(matches)
     }
 
-    fn insert(&mut self, dataset: &L) {}
+    fn insert(&mut self, _dataset: &L) {}
 
-    fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+    fn save<P: AsRef<Path>>(&self, _path: P) -> Result<(), Error> {
         Ok(())
     }
 
-    fn load<P: AsRef<Path>>(path: P) -> Result<(), Error> {
+    fn load<P: AsRef<Path>>(_path: P) -> Result<(), Error> {
         Ok(())
     }
 

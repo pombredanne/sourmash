@@ -4,7 +4,6 @@ use std::rc::Rc;
 use derive_builder::Builder;
 use failure::Error;
 
-use crate::index::search::search_minhashes;
 use crate::index::storage::Storage;
 use crate::index::{Comparable, Index};
 
@@ -49,11 +48,11 @@ where
         self.datasets.push(node.clone());
     }
 
-    fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+    fn save<P: AsRef<Path>>(&self, _path: P) -> Result<(), Error> {
         Ok(())
     }
 
-    fn load<P: AsRef<Path>>(path: P) -> Result<(), Error> {
+    fn load<P: AsRef<Path>>(_path: P) -> Result<(), Error> {
         Ok(())
     }
 

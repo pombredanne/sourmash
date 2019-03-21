@@ -124,7 +124,7 @@ impl<'de> Deserialize<'de> for KmerMinHash {
             ksize: u32,
             seed: u64,
             max_hash: u64,
-            md5sum: String,
+            //md5sum: String,
             mins: Vec<u64>,
             abundances: Option<Vec<u64>>,
             molecule: String,
@@ -501,7 +501,7 @@ impl KmerMinHash {
 
         // TODO: there is probably a way to avoid this Vec here,
         // and pass the it1 as left in it2.
-        let i1: Vec<u64> = it1.into_iter().cloned().collect();
+        let i1: Vec<u64> = it1.cloned().collect();
         let it2 = Intersection {
             left: i1.iter().peekable(),
             right: combined_mh.mins.iter().peekable(),
@@ -621,7 +621,7 @@ impl Signature {
         buf: &mut R,
         ksize: usize,
         moltype: Option<&str>,
-        scaled: Option<u64>,
+        _scaled: Option<u64>,
     ) -> Result<Vec<Signature>, Error>
     where
         R: io::Read,

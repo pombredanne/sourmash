@@ -1,9 +1,4 @@
-use std::fmt;
-use std::fmt::Display;
-
 use failure::{Error, Fail};
-use serde::de;
-use serde::ser;
 
 #[derive(Debug, Fail)]
 pub enum SourmashError {

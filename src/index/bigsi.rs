@@ -1,14 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
-use std::rc::Rc;
 
 use derive_builder::Builder;
 use failure::{Error, Fail};
 use fixedbitset::FixedBitSet;
 
 use crate::index::nodegraph::Nodegraph;
-use crate::index::storage::Storage;
-use crate::index::{Comparable, Dataset, Index};
+use crate::index::{Comparable, Index};
 use crate::{HashIntoType, Signature};
 
 #[derive(Clone, Builder)]
@@ -71,9 +69,7 @@ impl BIGSI<Signature> {
     }
 
     pub fn query_datasets(&self, hash: HashIntoType) -> impl Iterator<Item = Signature> + '_ {
-        self.query(hash)
-            .into_iter()
-            .map(move |pos| self.datasets[pos].clone())
+        self.query(hash).map(move |pos| self.datasets[pos].clone())
     }
 }
 
@@ -82,9 +78,9 @@ impl Index for BIGSI<Signature> {
 
     fn find<F>(
         &self,
-        search_fn: F,
-        sig: &Self::Item,
-        threshold: f64,
+        _search_fn: F,
+        _sig: &Self::Item,
+        _threshold: f64,
     ) -> Result<Vec<&Self::Item>, Error>
     where
         F: Fn(&dyn Comparable<Self::Item>, &Self::Item, f64) -> bool,
@@ -108,7 +104,6 @@ impl Index for BIGSI<Signature> {
 
         for hash in &hashes.mins {
             self.query(*hash)
-                .into_iter()
                 .map(|dataset_idx| {
                     let idx = counter.entry(dataset_idx).or_insert(0);
                     *idx += 1;
@@ -139,11 +134,11 @@ impl Index for BIGSI<Signature> {
         self.add(node.clone());
     }
 
-    fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+    fn save<P: AsRef<Path>>(&self, _path: P) -> Result<(), Error> {
         Ok(())
     }
 
-    fn load<P: AsRef<Path>>(path: P) -> Result<(), Error> {
+    fn load<P: AsRef<Path>>(_path: P) -> Result<(), Error> {
         Ok(())
     }
 
