@@ -18,7 +18,7 @@ use sourmash::index::search::{
 };
 use sourmash::index::{Comparable, Dataset, DatasetBuilder, Index};
 use sourmash::signatures::ukhs::{FlatUKHS, MemberUKHS, UKHSTrait, UniqueUKHS};
-use sourmash::Signature;
+use sourmash::signatures::Signature;
 
 struct Query<T> {
     data: T,

@@ -19,7 +19,7 @@ use lazy_init::Lazy;
 
 use crate::index::search::{search_minhashes, search_minhashes_containment};
 use crate::index::storage::{ReadData, ReadDataError, Storage};
-use crate::Signature;
+use crate::signatures::Signature;
 
 pub trait Index {
     type Item;

@@ -14,7 +14,7 @@ use serde_derive::{Deserialize, Serialize};
 use crate::index::nodegraph::Nodegraph;
 use crate::index::storage::{FSStorage, ReadData, ReadDataError, Storage, StorageInfo};
 use crate::index::{Comparable, Dataset, DatasetInfo, Index};
-use crate::Signature;
+use crate::signatures::Signature;
 
 pub type MHBT = SBT<Node<Nodegraph>, Dataset<Signature>>;
 

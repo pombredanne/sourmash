@@ -7,7 +7,8 @@ use fixedbitset::FixedBitSet;
 
 use crate::index::nodegraph::Nodegraph;
 use crate::index::{Comparable, Index};
-use crate::{HashIntoType, Signature};
+use crate::signatures::Signature;
+use crate::HashIntoType;
 
 #[derive(Clone, Builder)]
 pub struct BIGSI<L> {

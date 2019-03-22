@@ -7,8 +7,9 @@ use std::slice;
 use ocf::get_input;
 use serde_json;
 
+use crate::signatures::Signature;
 use crate::utils::SourmashStr;
-use crate::{KmerMinHash, Signature};
+use crate::KmerMinHash;
 
 // Signature methods
 
