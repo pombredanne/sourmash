@@ -1,3 +1,4 @@
+pub mod minhash;
 pub mod ukhs;
 
 use serde_derive::{Deserialize, Serialize};
@@ -10,7 +11,7 @@ use std::str;
 
 use failure::Error;
 
-use crate::KmerMinHash;
+use crate::signatures::minhash::KmerMinHash;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Signature {

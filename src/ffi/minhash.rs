@@ -3,7 +3,7 @@ use std::mem;
 use std::os::raw::c_char;
 use std::ptr;
 
-use crate::KmerMinHash;
+use crate::signatures::minhash::KmerMinHash;
 
 #[no_mangle]
 pub unsafe extern "C" fn kmerminhash_new(
