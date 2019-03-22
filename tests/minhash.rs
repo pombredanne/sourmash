@@ -1,4 +1,4 @@
-use sourmash::KmerMinHash;
+use sourmash::signatures::minhash::KmerMinHash;
 
 #[test]
 fn throws_error() {
