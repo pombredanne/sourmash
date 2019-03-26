@@ -12,6 +12,35 @@ use std::str;
 use failure::Error;
 
 use crate::signatures::minhash::KmerMinHash;
+use crate::signatures::ukhs::{FlatUKHS, UKHSTrait};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Signatures {
+    MinHash(KmerMinHash),
+    UKHS(FlatUKHS),
+}
+
+pub trait SigsTrait {
+    fn size(&self) -> usize;
+    fn to_vec(&self) -> Vec<u64>;
+}
+
+impl SigsTrait for Signatures {
+    fn size(&self) -> usize {
+        match *self {
+            Signatures::UKHS(ref ukhs) => ukhs.size(),
+            Signatures::MinHash(ref mh) => mh.size(),
+        }
+    }
+
+    fn to_vec(&self) -> Vec<u64> {
+        match *self {
+            Signatures::UKHS(ref ukhs) => ukhs.to_vec(),
+            Signatures::MinHash(ref mh) => mh.to_vec(),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Signature {
@@ -28,7 +57,7 @@ pub struct Signature {
     #[serde(default = "default_license")]
     pub license: String,
 
-    pub signatures: Vec<KmerMinHash>,
+    pub signatures: Vec<Signatures>,
 
     #[serde(default = "default_version")]
     pub version: f64,
@@ -94,22 +123,25 @@ impl Signature {
         });
 
         let filtered_sigs = flat_sigs.filter_map(|mut sig| {
-            let good_mhs: Vec<KmerMinHash> = sig
+            let good_mhs: Vec<Signatures> = sig
                 .signatures
                 .into_iter()
-                .filter(|mh| {
-                    if ksize == 0 || ksize == mh.ksize as usize {
-                        match moltype {
-                            Some(x) => {
-                                if (x.to_lowercase() == "dna" && !mh.is_protein)
-                                    || (x.to_lowercase() == "protein" && mh.is_protein)
-                                {
-                                    return true;
+                .filter(|sig| {
+                    // TODO: what if it is not a minhash?
+                    if let Signatures::MinHash(mh) = sig {
+                        if ksize == 0 || ksize == mh.ksize as usize {
+                            match moltype {
+                                Some(x) => {
+                                    if (x.to_lowercase() == "dna" && !mh.is_protein)
+                                        || (x.to_lowercase() == "protein" && mh.is_protein)
+                                    {
+                                        return true;
+                                    }
                                 }
-                            }
-                            None => return true,
+                                None => return true,
+                            };
                         };
-                    };
+                    }
                     false
                 })
                 .collect();
@@ -135,7 +167,7 @@ impl Default for Signature {
             license: default_license(),
             filename: None,
             name: None,
-            signatures: Vec::<KmerMinHash>::new(),
+            signatures: Vec::<Signatures>::new(),
             version: default_version(),
         }
     }
@@ -149,8 +181,32 @@ impl PartialEq for Signature {
             && self.filename == other.filename
             && self.name == other.name;
 
-        let mh = &self.signatures[0];
-        let other_mh = &other.signatures[0];
-        metadata && (mh == other_mh)
+        // TODO: find the right signature
+        // as long as we have a matching
+        if let Signatures::MinHash(mh) = &self.signatures[0] {
+            if let Signatures::MinHash(other_mh) = &other.signatures[0] {
+                return metadata && (mh == other_mh);
+            }
+        }
+        metadata
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::fs::File;
+    use std::io::BufReader;
+    use std::path::PathBuf;
+
+    use super::Signature;
+
+    #[test]
+    fn load_sig() {
+        let mut filename = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        filename.push("tests/test-data/.sbt.v3/60f7e23c24a8d94791cc7a8680c493f9");
+
+        let mut reader = BufReader::new(File::open(filename).unwrap());
+        let sigs = Signature::load_signatures(&mut reader, 31, Some("DNA".into()), None).unwrap();
+        let sig_data = sigs[0].clone();
     }
 }

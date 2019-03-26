@@ -9,7 +9,7 @@ use sourmash::index::linear::LinearIndexBuilder;
 use sourmash::index::sbt::MHBT;
 use sourmash::index::storage::ReadData;
 use sourmash::index::{Dataset, Index};
-use sourmash::Signature;
+use sourmash::signatures::Signature;
 
 fn find_small_bench(c: &mut Criterion) {
     let mut filename = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

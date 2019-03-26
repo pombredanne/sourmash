@@ -13,6 +13,7 @@ use lazy_static::lazy_static;
 
 use crate::_hash_murmur;
 use crate::errors::SourmashError;
+use crate::signatures::SigsTrait;
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
@@ -494,12 +495,14 @@ impl KmerMinHash {
             return Ok(0.0);
         }
     }
+}
 
-    pub fn size(&self) -> usize {
+impl SigsTrait for KmerMinHash {
+    fn size(&self) -> usize {
         self.mins.len()
     }
 
-    pub fn to_vec(&self) -> Vec<u64> {
+    fn to_vec(&self) -> Vec<u64> {
         self.mins.clone()
     }
 }

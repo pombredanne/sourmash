@@ -19,7 +19,7 @@ use lazy_init::Lazy;
 
 use crate::index::search::{search_minhashes, search_minhashes_containment};
 use crate::index::storage::{ReadData, ReadDataError, Storage};
-use crate::signatures::Signature;
+use crate::signatures::{Signature, Signatures};
 
 pub trait Index {
     type Item;
@@ -143,13 +143,27 @@ impl Dataset<Signature> {
         let ng: &Signature = self.data().unwrap();
         let ong: &Signature = other.data().unwrap();
 
+        let mut result = 0;
         // TODO: select the right signatures...
-        ng.signatures[0].count_common(&ong.signatures[0]).unwrap() as u64
+        // TODO: better matching here, what if it is not a mh?
+        if let Signatures::MinHash(mh) = &ng.signatures[0] {
+            if let Signatures::MinHash(omh) = &ong.signatures[0] {
+                result = mh.count_common(&omh).unwrap() as u64;
+            }
+        }
+        result
     }
 
     pub fn mins(&self) -> Vec<u64> {
         let ng: &Signature = self.data().unwrap();
-        ng.signatures[0].mins.to_vec()
+
+        // TODO: select the right signatures...
+        // TODO: better matching here, what if it is not a mh?
+        if let Signatures::MinHash(mh) = &ng.signatures[0] {
+            mh.mins.to_vec()
+        } else {
+            Vec::new()
+        }
     }
 }
 
@@ -164,17 +178,31 @@ impl Comparable<Dataset<Signature>> for Dataset<Signature> {
         let ng: &Signature = self.data().unwrap();
         let ong: &Signature = other.data().unwrap();
 
+        let mut result = 0.;
         // TODO: select the right signatures...
-        ng.signatures[0].compare(&ong.signatures[0]).unwrap()
+        // TODO: better matching here, what if it is not a mh?
+        if let Signatures::MinHash(mh) = &ng.signatures[0] {
+            if let Signatures::MinHash(omh) = &ong.signatures[0] {
+                result = mh.compare(&omh).unwrap();
+            }
+        }
+        result
     }
 
     fn containment(&self, other: &Dataset<Signature>) -> f64 {
         let ng: &Signature = self.data().unwrap();
         let ong: &Signature = other.data().unwrap();
 
+        let mut result = 0.;
         // TODO: select the right signatures...
-        let common = ng.signatures[0].count_common(&ong.signatures[0]).unwrap();
-        let size = ng.signatures[0].mins.len();
-        common as f64 / size as f64
+        // TODO: better matching here, what if it is not a mh?
+        if let Signatures::MinHash(mh) = &ng.signatures[0] {
+            if let Signatures::MinHash(omh) = &ong.signatures[0] {
+                let common = mh.count_common(&omh).unwrap();
+                let size = mh.mins.len();
+                result = common as f64 / size as f64;
+            }
+        }
+        result
     }
 }

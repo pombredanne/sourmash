@@ -8,7 +8,7 @@ use ocf::get_input;
 use serde_json;
 
 use crate::signatures::minhash::KmerMinHash;
-use crate::signatures::Signature;
+use crate::signatures::{Signature, Signatures};
 use crate::utils::SourmashStr;
 
 // Signature methods
@@ -78,7 +78,7 @@ unsafe fn signature_push_mh(ptr: *mut Signature, other: *const KmerMinHash) ->
        &*other
     };
 
-    sig.signatures.push(mh.clone());
+    sig.signatures.push(Signatures::MinHash(mh.clone()));
     Ok(())
 }
 }
@@ -95,7 +95,7 @@ unsafe fn signature_set_mh(ptr: *mut Signature, other: *const KmerMinHash) ->
        &*other
     };
 
-    sig.signatures = vec![mh.clone()];
+    sig.signatures = vec![Signatures::MinHash(mh.clone())];
     Ok(())
 }
 }

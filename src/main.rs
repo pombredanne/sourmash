@@ -18,7 +18,7 @@ use sourmash::index::search::{
 };
 use sourmash::index::{Comparable, Dataset, DatasetBuilder, Index};
 use sourmash::signatures::ukhs::{FlatUKHS, MemberUKHS, UKHSTrait, UniqueUKHS};
-use sourmash::signatures::Signature;
+use sourmash::signatures::{Signature, Signatures};
 
 struct Query<T> {
     data: T,
@@ -27,14 +27,24 @@ struct Query<T> {
 impl Query<Signature> {
     fn ksize(&self) -> u64 {
         // TODO: this might panic
-        u64::from(self.data.signatures[0].ksize)
+        if let Signatures::MinHash(mh) = &self.data.signatures[0] {
+            u64::from(mh.ksize)
+        } else {
+            // TODO what if this is not a minhash?
+            0
+        }
     }
 
     fn moltype(&self) -> String {
         // TODO: this might panic
-        if self.data.signatures[0].is_protein {
-            "protein".into()
+        if let Signatures::MinHash(mh) = &self.data.signatures[0] {
+            if mh.is_protein {
+                "protein".into()
+            } else {
+                "DNA".into()
+            }
         } else {
+            // TODO what if this is not a minhash?
             "DNA".into()
         }
     }

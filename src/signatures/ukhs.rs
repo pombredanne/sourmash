@@ -14,10 +14,27 @@ use ukhs;
 use crate::errors::SourmashError;
 use crate::index::nodegraph::Nodegraph;
 use crate::index::sbt::NoHashHasher;
+use crate::signatures::SigsTrait;
 
+#[derive(Clone)]
 pub struct UKHS<T> {
     ukhs: ukhs::UKHS,
     buckets: Vec<T>,
+}
+
+impl<T> std::fmt::Debug for UKHS<T>
+where
+    T: std::marker::Sync + std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "UKHS [W={}, K={}, buckets: {:?}]",
+            self.ukhs.w(),
+            self.ukhs.k(),
+            self.buckets
+        )
+    }
 }
 
 pub type HLL = HyperLogLog<u64, BuildHasherDefault<NoHashHasher>>;
@@ -25,7 +42,7 @@ pub type MemberUKHS = UKHS<Nodegraph>;
 pub type FlatUKHS = UKHS<u64>;
 pub type UniqueUKHS = UKHS<HLL>;
 
-pub trait UKHSTrait {
+pub trait UKHSTrait: SigsTrait {
     type Storage;
 
     fn new(ksize: usize, wsize: usize) -> Result<UKHS<Self::Storage>, Error>;
@@ -44,8 +61,6 @@ pub trait UKHSTrait {
     }
 
     fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error>;
-
-    fn to_vec(&self) -> Vec<u64>;
 
     fn load<P: AsRef<Path>>(path: P) -> Result<FlatUKHS, Error> {
         let file = File::open(&path)?;
@@ -67,7 +82,7 @@ pub trait UKHSTrait {
 impl UKHSTrait for UKHS<u64> {
     type Storage = u64;
 
-    fn new(ksize: usize, wsize: usize) -> Result<UKHS<u64>, Error> {
+    fn new(ksize: usize, wsize: usize) -> Result<Self, Error> {
         let wk_ukhs = ukhs::UKHS::new(ksize, wsize)?;
         let len = wk_ukhs.len();
 
@@ -102,10 +117,6 @@ impl UKHSTrait for UKHS<u64> {
         Ok(())
     }
 
-    fn to_vec(&self) -> Vec<u64> {
-        self.buckets.clone()
-    }
-
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
     where
         W: Write,
@@ -114,6 +125,16 @@ impl UKHSTrait for UKHS<u64> {
             Ok(_) => Ok(()),
             Err(_) => Err(SourmashError::SerdeError.into()),
         }
+    }
+}
+
+impl SigsTrait for UKHS<u64> {
+    fn size(&self) -> usize {
+        self.buckets.len()
+    }
+
+    fn to_vec(&self) -> Vec<u64> {
+        self.buckets.clone()
     }
 }
 
@@ -154,13 +175,6 @@ impl UKHSTrait for UKHS<Nodegraph> {
         Ok(())
     }
 
-    fn to_vec(&self) -> Vec<u64> {
-        self.buckets
-            .iter()
-            .map(|b| b.unique_kmers() as u64)
-            .collect()
-    }
-
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
     where
         W: Write,
@@ -172,6 +186,19 @@ impl UKHSTrait for UKHS<Nodegraph> {
             Ok(_) => Ok(()),
             Err(_) => Err(SourmashError::SerdeError.into()),
         }
+    }
+}
+
+impl SigsTrait for UKHS<Nodegraph> {
+    fn size(&self) -> usize {
+        self.buckets.len()
+    }
+
+    fn to_vec(&self) -> Vec<u64> {
+        self.buckets
+            .iter()
+            .map(|b| b.unique_kmers() as u64)
+            .collect()
     }
 }
 
@@ -236,10 +263,6 @@ impl UKHSTrait for UKHS<HLL> {
         Ok(())
     }
 
-    fn to_vec(&self) -> Vec<u64> {
-        self.buckets.iter().map(|b| b.count() as u64).collect()
-    }
-
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
     where
         W: Write,
@@ -251,6 +274,16 @@ impl UKHSTrait for UKHS<HLL> {
             Ok(_) => Ok(()),
             Err(_) => Err(SourmashError::SerdeError.into()),
         }
+    }
+}
+
+impl SigsTrait for UKHS<HLL> {
+    fn size(&self) -> usize {
+        self.buckets.len()
+    }
+
+    fn to_vec(&self) -> Vec<u64> {
+        self.buckets.iter().map(|b| b.count() as u64).collect()
     }
 }
 

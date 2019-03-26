@@ -14,7 +14,7 @@ use serde_derive::{Deserialize, Serialize};
 use crate::index::nodegraph::Nodegraph;
 use crate::index::storage::{FSStorage, ReadData, ReadDataError, Storage, StorageInfo};
 use crate::index::{Comparable, Dataset, DatasetInfo, Index};
-use crate::signatures::Signature;
+use crate::signatures::{Signature, Signatures, SigsTrait};
 
 pub type MHBT = SBT<Node<Nodegraph>, Dataset<Signature>>;
 
@@ -278,18 +278,22 @@ impl Comparable<Dataset<Signature>> for Node<Nodegraph> {
         let oth: &Signature = other.data().unwrap();
 
         // TODO: select the right signatures...
-        let sig = &oth.signatures[0];
-        if sig.size() == 0 {
-            return 0.0;
+        if let Signatures::MinHash(sig) = &oth.signatures[0] {
+            if sig.size() == 0 {
+                return 0.0;
+            }
+
+            let matches: usize = sig.mins.iter().map(|h| ng.get(*h)).sum();
+
+            let min_n_below = self.metadata["min_n_below"] as f64;
+
+            // This overestimates the similarity, but better than truncating too
+            // soon and losing matches
+            matches as f64 / min_n_below
+        } else {
+            //TODO what if it is not a minhash?
+            0.
         }
-
-        let matches: usize = sig.mins.iter().map(|h| ng.get(*h)).sum();
-
-        let min_n_below = self.metadata["min_n_below"] as f64;
-
-        // This overestimates the similarity, but better than truncating too
-        // soon and losing matches
-        matches as f64 / min_n_below
     }
 
     fn containment(&self, other: &Dataset<Signature>) -> f64 {
@@ -297,14 +301,17 @@ impl Comparable<Dataset<Signature>> for Node<Nodegraph> {
         let oth: &Signature = other.data().unwrap();
 
         // TODO: select the right signatures...
-        let sig = &oth.signatures[0];
-        if sig.size() == 0 {
-            return 0.0;
+        if let Signatures::MinHash(sig) = &oth.signatures[0] {
+            if sig.size() == 0 {
+                return 0.0;
+            }
+
+            let matches: usize = sig.mins.iter().map(|h| ng.get(*h)).sum();
+
+            matches as f64 / sig.size() as f64
+        } else {
+            0.
         }
-
-        let matches: usize = sig.mins.iter().map(|h| ng.get(*h)).sum();
-
-        matches as f64 / sig.size() as f64
     }
 }
 
