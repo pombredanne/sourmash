@@ -13,7 +13,7 @@ use failure::Error;
 
 use crate::errors::SourmashError;
 use crate::signatures::minhash::KmerMinHash;
-use crate::signatures::ukhs::{FlatUKHS, UKHSTrait};
+use crate::signatures::ukhs::FlatUKHS;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -27,6 +27,7 @@ pub trait SigsTrait {
     fn to_vec(&self) -> Vec<u64>;
     fn check_compatible(&self, other: &Self) -> Result<(), Error>;
     fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error>;
+    fn ksize(&self) -> usize;
 }
 
 impl SigsTrait for Signatures {
@@ -41,6 +42,13 @@ impl SigsTrait for Signatures {
         match *self {
             Signatures::UKHS(ref ukhs) => ukhs.to_vec(),
             Signatures::MinHash(ref mh) => mh.to_vec(),
+        }
+    }
+
+    fn ksize(&self) -> usize {
+        match *self {
+            Signatures::UKHS(ref ukhs) => ukhs.ksize(),
+            Signatures::MinHash(ref mh) => mh.ksize(),
         }
     }
 
@@ -105,8 +113,8 @@ impl Signature {
         } else if let Some(filename) = &self.filename {
             filename.clone()
         } else {
-            //TODO md5sum case
-            "".into()
+            // TODO md5sum case
+            unimplemented!()
         }
     }
 
@@ -150,13 +158,12 @@ impl Signature {
                 .signatures
                 .into_iter()
                 .filter(|sig| {
-                    // TODO: what if it is not a minhash?
                     if let Signatures::MinHash(mh) = sig {
-                        if ksize == 0 || ksize == mh.ksize as usize {
+                        if ksize == 0 || ksize == mh.ksize() as usize {
                             match moltype {
                                 Some(x) => {
-                                    if (x.to_lowercase() == "dna" && !mh.is_protein)
-                                        || (x.to_lowercase() == "protein" && mh.is_protein)
+                                    if (x.to_lowercase() == "dna" && !mh.is_protein())
+                                        || (x.to_lowercase() == "protein" && mh.is_protein())
                                     {
                                         return true;
                                     }
@@ -164,6 +171,9 @@ impl Signature {
                                 None => return true,
                             };
                         };
+                    } else {
+                        // TODO: what if it is not a minhash?
+                        unimplemented!();
                     }
                     false
                 })

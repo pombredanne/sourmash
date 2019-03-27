@@ -174,7 +174,7 @@ pub unsafe extern "C" fn kmerminhash_is_protein(ptr: *mut KmerMinHash) -> bool {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    mh.is_protein
+    mh.is_protein()
 }
 
 #[no_mangle]
@@ -183,7 +183,7 @@ pub unsafe extern "C" fn kmerminhash_seed(ptr: *mut KmerMinHash) -> u64 {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    mh.seed
+    mh.seed()
 }
 
 #[no_mangle]
@@ -201,7 +201,7 @@ pub unsafe extern "C" fn kmerminhash_num(ptr: *mut KmerMinHash) -> u32 {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    mh.num
+    mh.num()
 }
 
 #[no_mangle]
@@ -210,7 +210,7 @@ pub unsafe extern "C" fn kmerminhash_ksize(ptr: *mut KmerMinHash) -> u32 {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    mh.ksize
+    mh.ksize() as u32
 }
 
 #[no_mangle]
@@ -219,7 +219,7 @@ pub unsafe extern "C" fn kmerminhash_max_hash(ptr: *mut KmerMinHash) -> u64 {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    mh.max_hash
+    mh.max_hash()
 }
 
 ffi_fn! {

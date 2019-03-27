@@ -26,26 +26,21 @@ struct Query<T> {
 
 impl Query<Signature> {
     fn ksize(&self) -> u64 {
-        // TODO: this might panic
-        if let Signatures::MinHash(mh) = &self.data.signatures[0] {
-            u64::from(mh.ksize)
-        } else {
-            // TODO what if this is not a minhash?
-            0
-        }
+        // TODO: select the correct signature
+        self.data.signatures[0].ksize() as u64
     }
 
     fn moltype(&self) -> String {
         // TODO: this might panic
         if let Signatures::MinHash(mh) = &self.data.signatures[0] {
-            if mh.is_protein {
+            if mh.is_protein() {
                 "protein".into()
             } else {
                 "DNA".into()
             }
         } else {
             // TODO what if this is not a minhash?
-            "DNA".into()
+            unimplemented!();
         }
     }
 

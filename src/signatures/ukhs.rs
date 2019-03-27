@@ -114,6 +114,11 @@ impl SigsTrait for UKHS<u64> {
         self.buckets.clone()
     }
 
+    fn ksize(&self) -> usize {
+        // TODO: return k or w here?
+        self.ukhs.w()
+    }
+
     fn check_compatible(&self, other: &Self) -> Result<(), Error> {
         unimplemented!()
     }
@@ -183,6 +188,11 @@ impl SigsTrait for UKHS<Nodegraph> {
             .collect()
     }
 
+    fn ksize(&self) -> usize {
+        // TODO: return k or w here?
+        self.ukhs.w()
+    }
+
     fn check_compatible(&self, other: &Self) -> Result<(), Error> {
         unimplemented!()
     }
@@ -219,11 +229,8 @@ impl From<MemberUKHS> for FlatUKHS {
 
 impl From<&MemberUKHS> for FlatUKHS {
     fn from(other: &MemberUKHS) -> Self {
-        // TODO: implement clone for ukhs::UKHS?
-        let wk_ukhs = ukhs::UKHS::new(other.ukhs.k(), other.ukhs.w()).unwrap();
-
         FlatUKHS {
-            ukhs: wk_ukhs,
+            ukhs: other.ukhs.clone(),
             buckets: other.to_vec(), // TODO: also implement into_vec?
         }
     }
@@ -272,6 +279,11 @@ impl SigsTrait for UKHS<HLL> {
         self.buckets.iter().map(|b| b.count() as u64).collect()
     }
 
+    fn ksize(&self) -> usize {
+        // TODO: return k or w here?
+        self.ukhs.w()
+    }
+
     fn check_compatible(&self, other: &Self) -> Result<(), Error> {
         unimplemented!()
     }
@@ -308,11 +320,8 @@ impl From<UniqueUKHS> for FlatUKHS {
 
 impl From<&UniqueUKHS> for FlatUKHS {
     fn from(other: &UniqueUKHS) -> Self {
-        // TODO: implement clone for ukhs::UKHS?
-        let wk_ukhs = ukhs::UKHS::new(other.ukhs.k(), other.ukhs.w()).unwrap();
-
         FlatUKHS {
-            ukhs: wk_ukhs,
+            ukhs: other.ukhs.clone(),
             buckets: other.to_vec(), // TODO: also implement into_vec?
         }
     }

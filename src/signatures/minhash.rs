@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use std::iter::{Iterator, Peekable};
 use std::str;
 
-use cfg_if::cfg_if;
 use failure::Error;
 use lazy_static::lazy_static;
 
@@ -21,11 +20,11 @@ use wasm_bindgen::prelude::*;
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct KmerMinHash {
-    pub num: u32,
-    pub ksize: u32,
-    pub is_protein: bool,
-    pub seed: u64,
-    pub max_hash: u64,
+    num: u32,
+    ksize: u32,
+    is_protein: bool,
+    seed: u64,
+    max_hash: u64,
     pub(crate) mins: Vec<u64>,
     pub(crate) abunds: Option<Vec<u64>>,
 }
@@ -114,10 +113,10 @@ impl<'de> Deserialize<'de> for KmerMinHash {
             max_hash: tmpsig.max_hash,
             mins: tmpsig.mins,
             abunds: tmpsig.abundances,
-            is_protein: match tmpsig.molecule.as_ref() {
+            is_protein: match tmpsig.molecule.to_lowercase().as_ref() {
                 "protein" => true,
-                "DNA" => false,
-                _ => false, // TODO: throw error
+                "dna" => false,
+                _ => unimplemented!(),
             },
         })
     }
@@ -156,6 +155,22 @@ impl KmerMinHash {
             mins,
             abunds,
         }
+    }
+
+    pub fn num(&self) -> u32 {
+        self.num
+    }
+
+    pub fn is_protein(&self) -> bool {
+        self.is_protein
+    }
+
+    pub fn seed(&self) -> u64 {
+        self.seed
+    }
+
+    pub fn max_hash(&self) -> u64 {
+        self.max_hash
     }
 
     pub fn add_hash(&mut self, hash: u64) {
@@ -429,6 +444,10 @@ impl SigsTrait for KmerMinHash {
 
     fn to_vec(&self) -> Vec<u64> {
         self.mins.clone()
+    }
+
+    fn ksize(&self) -> usize {
+        self.ksize as usize
     }
 
     fn check_compatible(&self, other: &KmerMinHash) -> Result<(), Error> {

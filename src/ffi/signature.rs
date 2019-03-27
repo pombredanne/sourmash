@@ -151,8 +151,7 @@ unsafe fn signature_first_mh(ptr: *mut Signature) -> Result<*mut KmerMinHash> {
     if let Some(mh) = sig.signatures.get(0) {
         Ok(mem::transmute(Box::new(mh.clone())))
     } else {
-        // TODO: this is totally wrong
-        Ok(mem::transmute(Box::new(KmerMinHash::default())))
+        unimplemented!()
     }
 }
 }

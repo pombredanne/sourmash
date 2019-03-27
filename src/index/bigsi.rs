@@ -52,6 +52,7 @@ impl BIGSI<Signature> {
             }
         } else {
             // TODO: what if it is not a mh?
+            unimplemented!()
         }
 
         self.datasets.push(dataset);
@@ -133,7 +134,7 @@ impl Index for BIGSI<Signature> {
             Ok(results)
         } else {
             // TODO: what if it is not a minhash?
-            Err(BIGSIError::MethodDisabled.into())
+            unimplemented!()
         }
     }
 

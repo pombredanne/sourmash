@@ -143,15 +143,14 @@ impl Dataset<Signature> {
         let ng: &Signature = self.data().unwrap();
         let ong: &Signature = other.data().unwrap();
 
-        let mut result = 0;
         // TODO: select the right signatures...
         // TODO: better matching here, what if it is not a mh?
         if let Signatures::MinHash(mh) = &ng.signatures[0] {
             if let Signatures::MinHash(omh) = &ong.signatures[0] {
-                result = mh.count_common(&omh).unwrap() as u64;
+                return mh.count_common(&omh).unwrap() as u64;
             }
         }
-        result
+        unimplemented!();
     }
 
     pub fn mins(&self) -> Vec<u64> {
@@ -162,7 +161,7 @@ impl Dataset<Signature> {
         if let Signatures::MinHash(mh) = &ng.signatures[0] {
             mh.mins.to_vec()
         } else {
-            Vec::new()
+            unimplemented!()
         }
     }
 }
@@ -178,31 +177,29 @@ impl Comparable<Dataset<Signature>> for Dataset<Signature> {
         let ng: &Signature = self.data().unwrap();
         let ong: &Signature = other.data().unwrap();
 
-        let mut result = 0.;
         // TODO: select the right signatures...
         // TODO: better matching here, what if it is not a mh?
         if let Signatures::MinHash(mh) = &ng.signatures[0] {
             if let Signatures::MinHash(omh) = &ong.signatures[0] {
-                result = mh.compare(&omh).unwrap();
+                return mh.compare(&omh).unwrap();
             }
         }
-        result
+        unimplemented!()
     }
 
     fn containment(&self, other: &Dataset<Signature>) -> f64 {
         let ng: &Signature = self.data().unwrap();
         let ong: &Signature = other.data().unwrap();
 
-        let mut result = 0.;
         // TODO: select the right signatures...
         // TODO: better matching here, what if it is not a mh?
         if let Signatures::MinHash(mh) = &ng.signatures[0] {
             if let Signatures::MinHash(omh) = &ong.signatures[0] {
                 let common = mh.count_common(&omh).unwrap();
                 let size = mh.mins.len();
-                result = common as f64 / size as f64;
+                return common as f64 / size as f64;
             }
         }
-        result
+        unimplemented!()
     }
 }
