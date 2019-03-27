@@ -119,7 +119,7 @@ impl SigsTrait for UKHS<u64> {
         self.ukhs.w()
     }
 
-    fn check_compatible(&self, other: &Self) -> Result<(), Error> {
+    fn check_compatible(&self, _other: &Self) -> Result<(), Error> {
         unimplemented!()
     }
 
@@ -193,7 +193,7 @@ impl SigsTrait for UKHS<Nodegraph> {
         self.ukhs.w()
     }
 
-    fn check_compatible(&self, other: &Self) -> Result<(), Error> {
+    fn check_compatible(&self, _other: &Self) -> Result<(), Error> {
         unimplemented!()
     }
 
@@ -284,7 +284,7 @@ impl SigsTrait for UKHS<HLL> {
         self.ukhs.w()
     }
 
-    fn check_compatible(&self, other: &Self) -> Result<(), Error> {
+    fn check_compatible(&self, _other: &Self) -> Result<(), Error> {
         unimplemented!()
     }
 
@@ -395,10 +395,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::io::{Seek, SeekFrom, Write};
     use std::path::PathBuf;
 
-    use bio::io::fasta::{Reader, Record};
+    use bio::io::fasta::Reader;
     use ocf::get_input;
 
     use super::*;
@@ -410,12 +409,12 @@ mod test {
 
         let mut ukhs = MemberUKHS::new(9, 21).unwrap();
 
-        let (mut input, _) = get_input(filename.to_str().unwrap()).unwrap();
+        let (input, _) = get_input(filename.to_str().unwrap()).unwrap();
         let reader = Reader::new(input);
 
         for record in reader.records() {
             let record = record.unwrap();
-            ukhs.add_sequence(record.seq(), false);
+            ukhs.add_sequence(record.seq(), false).unwrap();
         }
 
         // TODO: find test case...
@@ -429,16 +428,16 @@ mod test {
 
         let mut ukhs = FlatUKHS::new(9, 21).unwrap();
 
-        let (mut input, _) = get_input(filename.to_str().unwrap()).unwrap();
+        let (input, _) = get_input(filename.to_str().unwrap()).unwrap();
         let reader = Reader::new(input);
 
         for record in reader.records() {
             let record = record.unwrap();
-            ukhs.add_sequence(record.seq(), false);
+            ukhs.add_sequence(record.seq(), false).unwrap();
         }
 
         let mut buffer = Vec::new();
-        ukhs.to_writer(&mut buffer);
+        ukhs.to_writer(&mut buffer).unwrap();
 
         match FlatUKHS::from_reader(&buffer[..]) {
             Ok(new_ukhs) => {

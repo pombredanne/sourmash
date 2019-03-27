@@ -1,3 +1,8 @@
+//! # Indexing structures for fast similarity search
+//!
+//! An index organizes signatures to allow for fast similarity search.
+//! Some indices also support containment searches.
+
 pub mod bigsi;
 pub mod linear;
 pub mod sbt;

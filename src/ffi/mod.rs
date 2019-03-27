@@ -1,3 +1,7 @@
+//! # Foreign Function Interface for calling sourmash from a C API
+//!
+//! Primary client for now is the Python version, using CFFI and milksnake.
+
 pub mod minhash;
 pub mod signature;
 

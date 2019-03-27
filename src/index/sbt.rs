@@ -6,6 +6,8 @@ use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+// TODO: check https://wiredforge.com/blog/phantom-builder/index.html
+// for some builder ideas
 use derive_builder::Builder;
 use failure::Error;
 use lazy_init::Lazy;
@@ -566,7 +568,7 @@ mod test {
     use tempfile;
 
     use super::*;
-    use crate::index::linear::{LinearIndex, LinearIndexBuilder};
+    use crate::index::linear::LinearIndexBuilder;
     use crate::index::search::{search_minhashes, search_minhashes_containment};
     use crate::index::DatasetBuilder;
 
@@ -582,7 +584,8 @@ mod test {
 
         tmpfile.seek(SeekFrom::Start(0)).unwrap();
 
-        let mut sbt = MHBT::from_path(tmpfile.path()).expect("Loading error");
+        let _sbt = MHBT::from_path(tmpfile.path()).expect("Loading error");
+        // TODO: check values?
     }
 
     #[test]

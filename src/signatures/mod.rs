@@ -1,3 +1,7 @@
+//! # Compressed representations of genomic data
+//!
+//! A signature is a sketch of a genomic dataset.
+
 pub mod minhash;
 pub mod ukhs;
 
@@ -240,6 +244,7 @@ mod test {
 
         let mut reader = BufReader::new(File::open(filename).unwrap());
         let sigs = Signature::load_signatures(&mut reader, 31, Some("DNA".into()), None).unwrap();
-        let sig_data = sigs[0].clone();
+        let _sig_data = sigs[0].clone();
+        // TODO: check sig_data
     }
 }

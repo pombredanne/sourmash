@@ -242,7 +242,7 @@ mod test {
     use std::path::PathBuf;
 
     use proptest::num::u64;
-    use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest, proptest_helper};
+    use proptest::{proptest, proptest_helper};
 
     proptest! {
       #[test]
@@ -273,16 +273,11 @@ mod test {
         let mut buf = Vec::new();
         {
             let mut writer = BufWriter::new(&mut buf);
-            ng.save_to_writer(&mut writer);
+            ng.save_to_writer(&mut writer).unwrap();
         }
 
         let chunk_size = 8;
-        for (i, (c1, c2)) in data
-            .to_vec()
-            .chunks(chunk_size)
-            .zip(buf.chunks(chunk_size))
-            .enumerate()
-        {
+        for (c1, c2) in data.to_vec().chunks(chunk_size).zip(buf.chunks(chunk_size)) {
             assert_eq!(c1, c2);
         }
     }

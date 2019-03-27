@@ -1,3 +1,21 @@
+//! # Compute, compare and search signatures for nucleotide (DNA/RNA) and protein sequences.
+//!
+//! sourmash is a command-line tool and Python library for computing
+//! [MinHash sketches][0] from DNA sequences, comparing them to each other,
+//! and plotting the results.
+//! This allows you to estimate sequence similarity between even very
+//! large data sets quickly and accurately.
+//!
+//! [0]: https://en.wikipedia.org/wiki/MinHash
+//!
+//! sourmash can be used to quickly search large databases of genomes
+//! for matches to query genomes and metagenomes.
+//!
+//! sourmash also includes k-mer based taxonomic exploration and
+//! classification routines for genome and metagenome analysis. These
+//! routines can use the NCBI taxonomy but do not depend on it in any way.
+//! Documentation and further examples for each module can be found in the module descriptions below.
+
 pub mod errors;
 
 #[macro_use]

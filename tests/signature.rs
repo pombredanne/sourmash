@@ -4,7 +4,6 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 
-use sourmash::signatures::minhash::KmerMinHash;
 use sourmash::signatures::Signature;
 
 #[test]
