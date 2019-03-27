@@ -11,6 +11,7 @@ use std::str;
 
 use failure::Error;
 
+use crate::errors::SourmashError;
 use crate::signatures::minhash::KmerMinHash;
 use crate::signatures::ukhs::{FlatUKHS, UKHSTrait};
 
@@ -24,6 +25,8 @@ pub enum Signatures {
 pub trait SigsTrait {
     fn size(&self) -> usize;
     fn to_vec(&self) -> Vec<u64>;
+    fn check_compatible(&self, other: &Self) -> Result<(), Error>;
+    fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error>;
 }
 
 impl SigsTrait for Signatures {
@@ -38,6 +41,26 @@ impl SigsTrait for Signatures {
         match *self {
             Signatures::UKHS(ref ukhs) => ukhs.to_vec(),
             Signatures::MinHash(ref mh) => mh.to_vec(),
+        }
+    }
+
+    fn check_compatible(&self, other: &Self) -> Result<(), Error> {
+        match *self {
+            Signatures::UKHS(ref ukhs) => match other {
+                Signatures::UKHS(ref ot) => ukhs.check_compatible(ot),
+                _ => Err(SourmashError::MismatchSignatureType.into()),
+            },
+            Signatures::MinHash(ref mh) => match other {
+                Signatures::MinHash(ref ot) => mh.check_compatible(ot),
+                _ => Err(SourmashError::MismatchSignatureType.into()),
+            },
+        }
+    }
+
+    fn add_sequence(&mut self, seq: &[u8], force: bool) -> Result<(), Error> {
+        match *self {
+            Signatures::UKHS(ref mut ukhs) => ukhs.add_sequence(seq, force),
+            Signatures::MinHash(ref mut mh) => mh.add_sequence(seq, force),
         }
     }
 }

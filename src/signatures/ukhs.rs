@@ -60,8 +60,6 @@ pub trait UKHSTrait: SigsTrait {
         self.to_writer(&mut writer)
     }
 
-    fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error>;
-
     fn load<P: AsRef<Path>>(path: P) -> Result<FlatUKHS, Error> {
         let file = File::open(&path)?;
         let reader = BufReader::new(file);
@@ -96,6 +94,30 @@ impl UKHSTrait for UKHS<u64> {
         self.buckets = vec![0; self.ukhs.len()];
     }
 
+    fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        match serde_json::to_writer(writer, &self) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(SourmashError::SerdeError.into()),
+        }
+    }
+}
+
+impl SigsTrait for UKHS<u64> {
+    fn size(&self) -> usize {
+        self.buckets.len()
+    }
+
+    fn to_vec(&self) -> Vec<u64> {
+        self.buckets.clone()
+    }
+
+    fn check_compatible(&self, other: &Self) -> Result<(), Error> {
+        unimplemented!()
+    }
+
     fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error> {
         // TODO: is seq.len() > W?
         let it: Vec<(u64, u64)> = self.ukhs.hash_iter_sequence(seq)?.collect();
@@ -116,26 +138,6 @@ impl UKHSTrait for UKHS<u64> {
 
         Ok(())
     }
-
-    fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
-    where
-        W: Write,
-    {
-        match serde_json::to_writer(writer, &self) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(SourmashError::SerdeError.into()),
-        }
-    }
-}
-
-impl SigsTrait for UKHS<u64> {
-    fn size(&self) -> usize {
-        self.buckets.len()
-    }
-
-    fn to_vec(&self) -> Vec<u64> {
-        self.buckets.clone()
-    }
 }
 
 impl UKHSTrait for UKHS<Nodegraph> {
@@ -153,26 +155,6 @@ impl UKHSTrait for UKHS<Nodegraph> {
 
     fn reset(&mut self) {
         self.buckets = vec![Nodegraph::with_tables(100_000, 4, self.ukhs.w()); self.ukhs.len()];
-    }
-
-    fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error> {
-        let it: Vec<(u64, u64)> = self.ukhs.hash_iter_sequence(seq)?.collect();
-
-        /* This one update every unikmer bucket with w_hash
-        it.into_iter()
-            .map(|(w_hash, k_hash)| {
-                self.buckets[self.ukhs.query_bucket(k_hash).unwrap()].count(w_hash);
-            })
-            .count();
-            */
-
-        // Only update the bucket for the minimum unikmer found
-        for (w_hash, group) in &it.into_iter().group_by(|(w, _)| *w) {
-            let (_, unikmer) = group.min().unwrap();
-            self.buckets[self.ukhs.query_bucket(unikmer).unwrap()].count(w_hash);
-        }
-
-        Ok(())
     }
 
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
@@ -199,6 +181,30 @@ impl SigsTrait for UKHS<Nodegraph> {
             .iter()
             .map(|b| b.unique_kmers() as u64)
             .collect()
+    }
+
+    fn check_compatible(&self, other: &Self) -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error> {
+        let it: Vec<(u64, u64)> = self.ukhs.hash_iter_sequence(seq)?.collect();
+
+        /* This one update every unikmer bucket with w_hash
+        it.into_iter()
+            .map(|(w_hash, k_hash)| {
+                self.buckets[self.ukhs.query_bucket(k_hash).unwrap()].count(w_hash);
+            })
+            .count();
+            */
+
+        // Only update the bucket for the minimum unikmer found
+        for (w_hash, group) in &it.into_iter().group_by(|(w, _)| *w) {
+            let (_, unikmer) = group.min().unwrap();
+            self.buckets[self.ukhs.query_bucket(unikmer).unwrap()].count(w_hash);
+        }
+
+        Ok(())
     }
 }
 
@@ -243,26 +249,6 @@ impl UKHSTrait for UKHS<HLL> {
         self.buckets = vec![HLL::with_hash(14, bh); self.ukhs.len()];
     }
 
-    fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error> {
-        let it: Vec<(u64, u64)> = self.ukhs.hash_iter_sequence(seq)?.collect();
-
-        /* This one update every unikmer bucket with w_hash
-        it.into_iter()
-            .map(|(w_hash, k_hash)| {
-                self.buckets[self.ukhs.query_bucket(k_hash).unwrap()].add(&w_hash);
-            })
-            .count();
-        */
-
-        // Only update the bucket for the minimum unikmer found
-        for (w_hash, group) in &it.into_iter().group_by(|(w, _)| *w) {
-            let (_, unikmer) = group.min().unwrap();
-            self.buckets[self.ukhs.query_bucket(unikmer).unwrap()].add(&w_hash);
-        }
-
-        Ok(())
-    }
-
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
     where
         W: Write,
@@ -284,6 +270,30 @@ impl SigsTrait for UKHS<HLL> {
 
     fn to_vec(&self) -> Vec<u64> {
         self.buckets.iter().map(|b| b.count() as u64).collect()
+    }
+
+    fn check_compatible(&self, other: &Self) -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    fn add_sequence(&mut self, seq: &[u8], _force: bool) -> Result<(), Error> {
+        let it: Vec<(u64, u64)> = self.ukhs.hash_iter_sequence(seq)?.collect();
+
+        /* This one update every unikmer bucket with w_hash
+        it.into_iter()
+            .map(|(w_hash, k_hash)| {
+                self.buckets[self.ukhs.query_bucket(k_hash).unwrap()].add(&w_hash);
+            })
+            .count();
+        */
+
+        // Only update the bucket for the minimum unikmer found
+        for (w_hash, group) in &it.into_iter().group_by(|(w, _)| *w) {
+            let (_, unikmer) = group.min().unwrap();
+            self.buckets[self.ukhs.query_bucket(unikmer).unwrap()].add(&w_hash);
+        }
+
+        Ok(())
     }
 }
 

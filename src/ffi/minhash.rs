@@ -4,6 +4,7 @@ use std::os::raw::c_char;
 use std::ptr;
 
 use crate::signatures::minhash::KmerMinHash;
+use crate::signatures::SigsTrait;
 
 #[no_mangle]
 pub unsafe extern "C" fn kmerminhash_new(

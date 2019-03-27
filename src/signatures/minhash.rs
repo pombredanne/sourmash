@@ -15,12 +15,8 @@ use crate::_hash_murmur;
 use crate::errors::SourmashError;
 use crate::signatures::SigsTrait;
 
-cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
-        use wasm_bindgen::prelude::*;
-    } else {
-    }
-}
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Debug, Clone, PartialEq)]
@@ -162,22 +158,6 @@ impl KmerMinHash {
         }
     }
 
-    pub fn check_compatible(&self, other: &KmerMinHash) -> Result<bool, Error> {
-        if self.ksize != other.ksize {
-            return Err(SourmashError::MismatchKSizes.into());
-        }
-        if self.is_protein != other.is_protein {
-            return Err(SourmashError::MismatchDNAProt.into());
-        }
-        if self.max_hash != other.max_hash {
-            return Err(SourmashError::MismatchMaxHash.into());
-        }
-        if self.seed != other.seed {
-            return Err(SourmashError::MismatchSeed.into());
-        }
-        Ok(true)
-    }
-
     pub fn add_hash(&mut self, hash: u64) {
         let current_max = match self.mins.last() {
             Some(&x) => x,
@@ -236,61 +216,6 @@ impl KmerMinHash {
     pub fn add_word(&mut self, word: &[u8]) {
         let hash = _hash_murmur(word, self.seed);
         self.add_hash(hash);
-    }
-
-    pub fn add_sequence(&mut self, seq: &[u8], force: bool) -> Result<(), Error> {
-        let sequence: Vec<u8> = seq
-            .iter()
-            .map(|&x| (x as char).to_ascii_uppercase() as u8)
-            .collect();
-        if sequence.len() >= (self.ksize as usize) {
-            if !self.is_protein {
-                // dna
-                for kmer in sequence.windows(self.ksize as usize) {
-                    if _checkdna(kmer) {
-                        let rc = revcomp(kmer);
-                        if kmer < &rc {
-                            self.add_word(kmer);
-                        } else {
-                            self.add_word(&rc);
-                        }
-                    } else if !force {
-                        return Err(SourmashError::InvalidDNA {
-                            message: String::from_utf8(kmer.to_vec()).unwrap(),
-                        }
-                        .into());
-                    }
-                }
-            } else {
-                // protein
-                let rc = revcomp(&sequence);
-                let aa_ksize = self.ksize / 3;
-
-                for i in 0..3 {
-                    let substr: Vec<u8> = sequence
-                        .iter()
-                        .cloned()
-                        .skip(i)
-                        .take(sequence.len() - i)
-                        .collect();
-                    let aa = to_aa(&substr);
-
-                    aa.windows(aa_ksize as usize)
-                        .map(|n| self.add_word(n))
-                        .count();
-
-                    let rc_substr: Vec<u8> =
-                        rc.iter().cloned().skip(i).take(rc.len() - i).collect();
-                    let aa_rc = to_aa(&rc_substr);
-
-                    aa_rc
-                        .windows(aa_ksize as usize)
-                        .map(|n| self.add_word(n))
-                        .count();
-                }
-            }
-        }
-        Ok(())
     }
 
     pub fn merge(&mut self, other: &KmerMinHash) -> Result<(), Error> {
@@ -504,6 +429,77 @@ impl SigsTrait for KmerMinHash {
 
     fn to_vec(&self) -> Vec<u64> {
         self.mins.clone()
+    }
+
+    fn check_compatible(&self, other: &KmerMinHash) -> Result<(), Error> {
+        if self.ksize != other.ksize {
+            return Err(SourmashError::MismatchKSizes.into());
+        }
+        if self.is_protein != other.is_protein {
+            return Err(SourmashError::MismatchDNAProt.into());
+        }
+        if self.max_hash != other.max_hash {
+            return Err(SourmashError::MismatchMaxHash.into());
+        }
+        if self.seed != other.seed {
+            return Err(SourmashError::MismatchSeed.into());
+        }
+        Ok(())
+    }
+
+    fn add_sequence(&mut self, seq: &[u8], force: bool) -> Result<(), Error> {
+        let sequence: Vec<u8> = seq
+            .iter()
+            .map(|&x| (x as char).to_ascii_uppercase() as u8)
+            .collect();
+        if sequence.len() >= (self.ksize as usize) {
+            if !self.is_protein {
+                // dna
+                for kmer in sequence.windows(self.ksize as usize) {
+                    if _checkdna(kmer) {
+                        let rc = revcomp(kmer);
+                        if kmer < &rc {
+                            self.add_word(kmer);
+                        } else {
+                            self.add_word(&rc);
+                        }
+                    } else if !force {
+                        return Err(SourmashError::InvalidDNA {
+                            message: String::from_utf8(kmer.to_vec()).unwrap(),
+                        }
+                        .into());
+                    }
+                }
+            } else {
+                // protein
+                let rc = revcomp(&sequence);
+                let aa_ksize = self.ksize / 3;
+
+                for i in 0..3 {
+                    let substr: Vec<u8> = sequence
+                        .iter()
+                        .cloned()
+                        .skip(i)
+                        .take(sequence.len() - i)
+                        .collect();
+                    let aa = to_aa(&substr);
+
+                    aa.windows(aa_ksize as usize)
+                        .map(|n| self.add_word(n))
+                        .count();
+
+                    let rc_substr: Vec<u8> =
+                        rc.iter().cloned().skip(i).take(rc.len() - i).collect();
+                    let aa_rc = to_aa(&rc_substr);
+
+                    aa_rc
+                        .windows(aa_ksize as usize)
+                        .map(|n| self.add_word(n))
+                        .count();
+                }
+            }
+        }
+        Ok(())
     }
 }
 
