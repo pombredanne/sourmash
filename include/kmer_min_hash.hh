@@ -9,6 +9,8 @@
 #include <exception>
 #include <string>
 
+namespace sourmash {
+
 extern "C" {
   #include "sourmash.h"
 }
@@ -87,5 +89,6 @@ class KmerMinAbundance: public KmerMinHash {
 
     ~KmerMinAbundance() throw() {}
 };
+}
 
 #endif // KMER_MIN_HASH_HH
