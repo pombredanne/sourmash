@@ -12,22 +12,12 @@ from libc.stdint cimport uint32_t, uint64_t
 from libcpp.vector cimport vector
 
 
-cdef extern from "kmer_min_hash.hh":
+cdef extern from "kmer_min_hash.hh" namespace "sourmash":
     ctypedef uint64_t HashIntoType;
-    ctypedef vector[HashIntoType] CMinHashType;
-
 
     cdef uint64_t _hash_murmur(const string, uint32_t seed)
 
-
     cdef cppclass KmerMinHash:
-        const uint32_t seed;
-        const unsigned int num;
-        const unsigned int ksize;
-        const bool is_protein;
-        const HashIntoType max_hash;
-        CMinHashType mins;
-
         KmerMinHash(unsigned int, unsigned int, bool, uint32_t, HashIntoType)
         void add_hash(HashIntoType) except +ValueError
         void remove_hash(HashIntoType) except +ValueError
@@ -36,12 +26,20 @@ cdef extern from "kmer_min_hash.hh":
         void merge(const KmerMinHash&) except +ValueError
         unsigned int count_common(const KmerMinHash&) except +ValueError
         unsigned long size()
+        uint32_t num()
+        uint32_t ksize()
+        uint64_t seed()
+        uint64_t max_hash()
+        bool track_abundance()
+        bool is_protein()
+        vector[HashIntoType] mins()
 
 
     cdef cppclass KmerMinAbundance(KmerMinHash):
-        CMinHashType abunds;
-
         KmerMinAbundance(unsigned int, unsigned int, bool, uint32_t, HashIntoType)
+        vector[HashIntoType] abunds()
+        void set_abundances(vector[HashIntoType], vector[HashIntoType])
+"""
         void add_hash(HashIntoType) except +ValueError
         void remove_hash(HashIntoType) except +ValueError
         void add_word(string word) except +ValueError
@@ -50,11 +48,17 @@ cdef extern from "kmer_min_hash.hh":
         void merge(const KmerMinHash&) except +ValueError
         unsigned int count_common(const KmerMinAbundance&) except +ValueError
         unsigned long size()
+        uint32_t num()
+        uint32_t ksize()
+        uint64_t seed()
+        uint64_t max_hash()
+        bool track_abundance()
+        bool is_protein()
+        """
 
 
 cdef class MinHash(object):
     cdef unique_ptr[KmerMinHash] _this
-    cdef public bool track_abundance
 
     cpdef get_mins(self, bool with_abundance=*)
     cpdef set_abundances(self, dict)
