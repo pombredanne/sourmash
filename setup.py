@@ -5,7 +5,7 @@ from setuptools import Extension
 import os
 
 EXTRA_COMPILE_ARGS = ['-std=c++11', '-pedantic']
-EXTRA_LINK_ARGS=[]
+EXTRA_LINK_ARGS=['-lsourmash', '-Ltarget/release']
 
 CLASSIFIERS = [
     "Environment :: Console",

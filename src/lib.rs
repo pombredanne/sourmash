@@ -312,6 +312,17 @@ impl KmerMinHash {
         Ok(())
     }
 
+    pub fn remove_hash(&mut self, hash: u64) {
+        if let Ok(pos) = self.mins.binary_search(&hash) {
+            if self.mins[pos] == hash {
+                self.mins.remove(pos);
+                if let Some(ref mut abunds) = self.abunds {
+                    abunds.remove(pos);
+                }
+            }
+        };
+    }
+
     pub fn merge(&mut self, other: &KmerMinHash) -> Result<(), Error> {
         self.check_compatible(other)?;
         let max_size = self.mins.len() + other.mins.len();
@@ -429,6 +440,13 @@ impl KmerMinHash {
             for _i in 0..item.1 {
                 self.add_hash(item.0);
             }
+        }
+        Ok(())
+    }
+
+    pub fn remove_many(&mut self, hashes: &[u64]) -> Result<(), Error> {
+        for min in hashes {
+            self.remove_hash(*min);
         }
         Ok(())
     }

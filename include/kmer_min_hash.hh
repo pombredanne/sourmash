@@ -37,6 +37,26 @@ protected:
     const std::string _msg;
 };
 
+void process_errors() {
+	auto err_code = sourmash_err_get_last_code();
+
+	switch (err_code) {
+		case SOURMASH_ERROR_CODE_MISMATCH_K_SIZES:
+			throw minhash_exception("different ksizes cannot be compared");
+			break;
+		case SOURMASH_ERROR_CODE_MISMATCH_D_N_A_PROT:
+			throw minhash_exception("DNA/prot minhashes cannot be compared");
+			break;
+		case SOURMASH_ERROR_CODE_MISMATCH_MAX_HASH:
+			throw minhash_exception("mismatch in max_hash; comparison fail");
+			break;
+		case SOURMASH_ERROR_CODE_MISMATCH_SEED:
+			throw minhash_exception("mismatch in seed; comparison fail");
+			break;
+		default: break;
+	}
+}
+
 class KmerMinHash
 {
   protected:
@@ -48,13 +68,12 @@ class KmerMinHash
       _this = kmerminhash_new(n, k, prot, s, mx, false);
     };
 
-    void check_compatible(const KmerMinHash& other) {}
-
     void add_hash(const HashIntoType h) {
-      return kmerminhash_add_hash(_this, h);
+      kmerminhash_add_hash(_this, h);
     }
 
     void remove_hash(const HashIntoType h) {
+      kmerminhash_remove_hash(_this, h);
     }
 
     void add_word(const std::string& word) {
@@ -63,14 +82,18 @@ class KmerMinHash
 
     void add_sequence(const char * sequence, bool force=false) {
       kmerminhash_add_sequence(_this, sequence, force);
+      process_errors();
     }
 
     void merge(const KmerMinHash& other) {
       kmerminhash_merge(_this, other._this);
+      process_errors();
     }
 
     unsigned int count_common(const KmerMinHash& other) {
-      kmerminhash_count_common(_this, other._this);
+      auto v = kmerminhash_count_common(_this, other._this);
+      process_errors();
+      return v;
     }
 
     size_t size() {
@@ -97,13 +120,13 @@ class KmerMinHash
 
     void set_abundances(std::vector<HashIntoType> mins, std::vector<HashIntoType> abunds) {
       auto max_h = max_hash();
-      auto added = 0;
       auto n = num();
       auto min_it = mins.begin();
       auto last_min = mins.end();
       auto abund_it = abunds.begin();
 
       if (track_abundance()) {
+        size_t added = 0;
         for (; min_it != last_min; ++min_it, ++abund_it) {
           if (!max_h or *min_it <= max_h) {
             kmerminhash_mins_push(_this, *min_it);

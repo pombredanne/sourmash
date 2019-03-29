@@ -19,9 +19,9 @@ cdef extern from "kmer_min_hash.hh" namespace "sourmash":
 
     cdef cppclass KmerMinHash:
         KmerMinHash(unsigned int, unsigned int, bool, uint32_t, HashIntoType)
-        void add_hash(HashIntoType) except +ValueError
-        void remove_hash(HashIntoType) except +ValueError
-        void add_word(string word) except +ValueError
+        void add_hash(HashIntoType)
+        void remove_hash(HashIntoType)
+        void add_word(string word)
         void add_sequence(const char *, bool) except +ValueError
         void merge(const KmerMinHash&) except +ValueError
         unsigned int count_common(const KmerMinHash&) except +ValueError

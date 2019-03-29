@@ -92,8 +92,6 @@ cdef class MinHash(object):
                        uint32_t seed=MINHASH_DEFAULT_SEED,
                        HashIntoType max_hash=0,
                        mins=None, HashIntoType scaled=0):
-        self.track_abundance = track_abundance
-
         if max_hash and scaled:
             raise ValueError('cannot set both max_hash and scaled')
         elif scaled:
@@ -136,14 +134,12 @@ cdef class MinHash(object):
                 deref(self._this).ksize(),
                 deref(self._this).is_protein(),
                 self.get_mins(with_abundance=with_abundance),
-                None, self.track_abundance(), deref(self._this).max_hash(),
+                None, self.track_abundance, deref(self._this).max_hash(),
                 deref(self._this).seed())
 
     def __setstate__(self, tup):
         (n, ksize, is_protein, mins, _, track_abundance, max_hash, seed) =\
           tup
-
-        self.track_abundance = track_abundance
 
         cdef KmerMinHash *mh = NULL
         if track_abundance:
@@ -239,6 +235,10 @@ cdef class MinHash(object):
         return deref(self._this).ksize()
 
     @property
+    def track_abundance(self):
+        return deref(self._this).track_abundance()
+
+    @property
     def max_hash(self):
         mm = deref(self._this).max_hash()
 
@@ -255,7 +255,7 @@ cdef class MinHash(object):
             raise ValueError('new sample n is higher than current sample n')
 
         a = MinHash(new_num, deref(self._this).ksize(),
-                    deref(self._this).is_protein(), self.track_abundance(),
+                    deref(self._this).is_protein(), self.track_abundance,
                     deref(self._this).seed(), 0)
         if self.track_abundance:
             a.set_abundances(self.get_mins(with_abundance=True))
@@ -286,7 +286,7 @@ cdef class MinHash(object):
         new_max_hash = get_max_hash_for_scaled(new_num)
 
         a = MinHash(0, deref(self._this).ksize(),
-                    deref(self._this).is_protein(), self.track_abundance(),
+                    deref(self._this).is_protein(), self.track_abundance,
                     deref(self._this).seed(), new_max_hash)
         if self.track_abundance:
             a.set_abundances(self.get_mins(with_abundance=True))
