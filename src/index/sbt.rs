@@ -18,8 +18,6 @@ use crate::index::storage::{FSStorage, ReadData, ReadDataError, Storage, Storage
 use crate::index::{Comparable, Dataset, DatasetInfo, Index};
 use crate::signatures::{Signature, Signatures, SigsTrait};
 
-pub type MHBT = SBT<Node<Nodegraph>, Dataset<Signature>>;
-
 #[derive(Builder)]
 pub struct SBT<N, L> {
     #[builder(default = "2")]
@@ -564,13 +562,21 @@ impl BinaryTree {
 
 #[cfg(test)]
 mod test {
+    use std::fs::File;
+    use std::io::BufReader;
     use std::io::{Seek, SeekFrom};
+    use std::path::PathBuf;
+    use std::rc::Rc;
     use tempfile;
 
-    use super::*;
+    use lazy_init::Lazy;
+
     use crate::index::linear::LinearIndexBuilder;
+    use crate::index::sbt::scaffold;
     use crate::index::search::{search_minhashes, search_minhashes_containment};
-    use crate::index::DatasetBuilder;
+    use crate::index::storage::Storage;
+    use crate::index::{DatasetBuilder, Index, MHBT};
+    use crate::signatures::Signature;
 
     #[test]
     fn save_sbt() {

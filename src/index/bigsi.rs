@@ -164,11 +164,12 @@ mod test {
 
     use lazy_init::Lazy;
 
-    use super::*;
+    use super::BIGSI;
 
-    use crate::index::sbt::MHBT;
     use crate::index::storage::ReadData;
     use crate::index::DatasetBuilder;
+    use crate::index::{Index, MHBT};
+    use crate::signatures::Signature;
 
     #[test]
     fn bigsi_sbt_oracle() {

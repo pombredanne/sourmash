@@ -22,9 +22,16 @@ use derive_builder::Builder;
 use failure::Error;
 use lazy_init::Lazy;
 
+use crate::index::nodegraph::Nodegraph;
+use crate::index::sbt::{Node, SBT};
 use crate::index::search::{search_minhashes, search_minhashes_containment};
 use crate::index::storage::{ReadData, ReadDataError, Storage};
+use crate::signatures::ukhs::FlatUKHS;
 use crate::signatures::{Signature, Signatures};
+
+pub type MHBT = SBT<Node<Nodegraph>, Dataset<Signature>>;
+
+pub type UKHSTree = SBT<Node<FlatUKHS>, Dataset<FlatUKHS>>;
 
 pub trait Index {
     type Item;
