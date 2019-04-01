@@ -1,4 +1,6 @@
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 use std::fs::File;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::io::{BufReader, Read};
@@ -6,8 +8,6 @@ use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-// TODO: check https://wiredforge.com/blog/phantom-builder/index.html
-// for some builder ideas
 use derive_builder::Builder;
 use failure::Error;
 use lazy_init::Lazy;
@@ -16,6 +16,7 @@ use serde_derive::{Deserialize, Serialize};
 use crate::index::nodegraph::Nodegraph;
 use crate::index::storage::{FSStorage, ReadData, ReadDataError, Storage, StorageInfo};
 use crate::index::{Comparable, Dataset, DatasetInfo, Index};
+use crate::signatures::ukhs::FlatUKHS;
 use crate::signatures::{Signature, Signatures, SigsTrait};
 
 #[derive(Builder)]
@@ -28,8 +29,10 @@ pub struct SBT<N, L> {
     #[builder(setter(skip))]
     factory: Factory,
 
+    #[builder(default = "HashMap::default()")]
     nodes: HashMap<u64, N>,
 
+    #[builder(default = "HashMap::default()")]
     leaves: HashMap<u64, L>,
 }
 
@@ -43,8 +46,13 @@ const fn child(parent: u64, pos: u64, d: u64) -> u64 {
 
 impl<N, L> SBT<N, L>
 where
-    L: std::clone::Clone,
+    L: std::clone::Clone + Default,
+    N: Default,
 {
+    pub fn builder() -> SBTBuilder<N, L> {
+        SBTBuilder::default()
+    }
+
     #[inline(always)]
     fn parent(&self, pos: u64) -> Option<u64> {
         if pos == 0 {
@@ -145,11 +153,16 @@ where
 
     pub fn save_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
         let mut args: HashMap<String, String> = HashMap::default();
+        //TODO: read this from storage
         args.insert("path".into(), ".".into());
+
         let storage = StorageInfo {
             backend: "FSStorage".into(),
             args,
         };
+
+        //TODO: still need to trigger saving each node under storage!
+
         let info: SBTInfo<NodeInfo, DatasetInfo> = SBTInfo {
             d: self.d,
             factory: self.factory.clone(),
@@ -180,6 +193,7 @@ where
                 })
                 .collect(),
         };
+
         let file = File::create(path)?;
         serde_json::to_writer(file, &info)?;
 
@@ -187,10 +201,14 @@ where
     }
 }
 
+pub trait Update<O> {
+    fn update(&self, other: &mut O);
+}
+
 impl<N, L> Index for SBT<N, L>
 where
-    N: Comparable<N> + Comparable<L>,
-    L: Comparable<L> + std::clone::Clone + std::fmt::Debug,
+    N: Comparable<N> + Comparable<L> + Update<N> + Default,
+    L: Comparable<L> + Update<N> + Clone + Debug + Default,
 {
     type Item = L;
 
@@ -224,14 +242,75 @@ where
         Ok(matches)
     }
 
-    fn insert(&mut self, _dataset: &L) {}
+    fn insert(&mut self, dataset: &L) {
+        if self.leaves.is_empty() {
+            // in this case the tree is empty,
+            // just add the dataset to the first available leaf
+            self.leaves.entry(0).or_insert(dataset.clone());
+            return;
+        }
+
+        // TODO: find position by similarity search
+        let pos = match self.leaves.keys().max() {
+            Some(p) => *p + 1,
+            None => {
+                // empty tree; initialize w/node.
+
+                /* TODO: use factory to build new node
+                n = Node(self.factory, name="internal." + str(pos))
+                self.nodes[0] = n
+                */
+                1
+            }
+        };
+
+        // we can unwrap here because the root node case
+        // only happens on an empty tree, and if we got
+        // to this point we have at least one leaf already.
+        let parent_pos = self.parent(pos).unwrap();
+
+        // Case 1: parent is a Leaf
+        if let Entry::Occupied(pnode) = self.leaves.entry(parent_pos) {
+            // create a new internal node, add it to self.nodes[parent_pos)
+            // TODO: we need the factory here...
+            let mut new_node = N::default();
+            /*
+            let new_node = Node {
+                name: format!("internal.{}", parent_pos).into(),
+                storage: Some(Rc::clone(&self.storage)),
+                data: Rc::new(Lazy::new()), // TODO: init nodegraph
+            };
+            */
+
+            let (_, leaf) = pnode.remove_entry();
+
+            // for each children update the parent node
+            // TODO: write the update method
+            leaf.update(&mut new_node);
+            dataset.update(&mut new_node);
+
+            // node and parent are children of new internal node
+            let mut c_pos = self.children(parent_pos).into_iter().take(2);
+            let c1_pos = c_pos.next().unwrap();
+            let c2_pos = c_pos.next().unwrap();
+
+            self.leaves.entry(c1_pos).or_insert(leaf);
+            self.leaves.entry(c2_pos).or_insert(dataset.clone());
+
+            // add the new internal node to self.nodes[parent_pos)
+            // TODO check if it is really empty?
+            self.nodes.entry(parent_pos).or_insert(new_node);
+        }
+
+        unimplemented!()
+    }
 
     fn save<P: AsRef<Path>>(&self, _path: P) -> Result<(), Error> {
-        Ok(())
+        unimplemented!()
     }
 
     fn load<P: AsRef<Path>>(_path: P) -> Result<(), Error> {
-        Ok(())
+        unimplemented!()
     }
 
     fn datasets(&self) -> Vec<Self::Item> {
@@ -256,6 +335,50 @@ where
     storage: Option<Rc<dyn Storage>>,
     #[builder(setter(skip))]
     pub(crate) data: Rc<Lazy<T>>,
+}
+
+impl Update<Node<FlatUKHS>> for Node<FlatUKHS> {
+    fn update(&self, _other: &mut Node<FlatUKHS>) {
+        unimplemented!();
+    }
+}
+
+impl Update<Node<Nodegraph>> for Node<Nodegraph> {
+    fn update(&self, _other: &mut Node<Nodegraph>) {
+        unimplemented!();
+    }
+}
+
+impl Update<Node<Nodegraph>> for Dataset<Signature> {
+    fn update(&self, _other: &mut Node<Nodegraph>) {
+        unimplemented!();
+    }
+}
+
+impl Update<Node<FlatUKHS>> for Dataset<Signature> {
+    fn update(&self, _other: &mut Node<FlatUKHS>) {
+        unimplemented!();
+    }
+}
+
+impl Comparable<Node<FlatUKHS>> for Node<FlatUKHS> {
+    fn similarity(&self, _other: &Node<FlatUKHS>) -> f64 {
+        unimplemented!();
+    }
+
+    fn containment(&self, _other: &Node<FlatUKHS>) -> f64 {
+        unimplemented!();
+    }
+}
+
+impl Comparable<Dataset<Signature>> for Node<FlatUKHS> {
+    fn similarity(&self, _other: &Dataset<Signature>) -> f64 {
+        unimplemented!();
+    }
+
+    fn containment(&self, _other: &Dataset<Signature>) -> f64 {
+        unimplemented!();
+    }
 }
 
 impl Comparable<Node<Nodegraph>> for Node<Nodegraph> {
@@ -292,7 +415,7 @@ impl Comparable<Dataset<Signature>> for Node<Nodegraph> {
             matches as f64 / min_n_below
         } else {
             //TODO what if it is not a minhash?
-            0.
+            unimplemented!()
         }
     }
 
@@ -310,7 +433,8 @@ impl Comparable<Dataset<Signature>> for Node<Nodegraph> {
 
             matches as f64 / sig.size() as f64
         } else {
-            0.
+            //TODO what if it is not a minhash?
+            unimplemented!()
         }
     }
 }
@@ -484,7 +608,7 @@ where
     }
 
     // save the new tree
-
+    // TODO: make a proper basepath here!
     let storage: Rc<dyn Storage> = Rc::new(FSStorage {
         basepath: ".sbt".into(),
     });
@@ -571,8 +695,9 @@ mod test {
 
     use lazy_init::Lazy;
 
+    use super::scaffold;
+
     use crate::index::linear::LinearIndexBuilder;
-    use crate::index::sbt::scaffold;
     use crate::index::search::{search_minhashes, search_minhashes_containment};
     use crate::index::storage::Storage;
     use crate::index::{DatasetBuilder, Index, MHBT};

@@ -2,9 +2,11 @@ use std::fs::File;
 use std::hash::BuildHasherDefault;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
+use std::rc::Rc;
 
 use failure::Error;
 use itertools::Itertools;
+use lazy_init::Lazy;
 use pdatastructs::hyperloglog::HyperLogLog;
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
@@ -14,7 +16,8 @@ use ukhs;
 use crate::errors::SourmashError;
 use crate::index::nodegraph::Nodegraph;
 use crate::index::sbt::NoHashHasher;
-use crate::signatures::SigsTrait;
+use crate::index::Dataset;
+use crate::signatures::{Signature, Signatures, SigsTrait};
 
 #[derive(Clone)]
 pub struct UKHS<T> {
@@ -34,6 +37,44 @@ where
             self.ukhs.k(),
             self.buckets
         )
+    }
+}
+
+impl<T> Default for UKHS<T>
+where
+    T: Sync + Default,
+    UKHS<T>: UKHSTrait<Storage = T>,
+{
+    fn default() -> Self {
+        UKHS::new(7, 21).unwrap()
+    }
+}
+
+impl From<FlatUKHS> for Dataset<Signature> {
+    fn from(other: FlatUKHS) -> Dataset<Signature> {
+        let data = Lazy::new();
+        data.get_or_create(|| other.into());
+
+        Dataset::builder()
+            .data(Rc::new(data))
+            .filename("".into())
+            .name("".into())
+            .metadata("".into())
+            .storage(None)
+            .build()
+            .unwrap()
+    }
+}
+
+impl From<FlatUKHS> for Signature {
+    fn from(other: FlatUKHS) -> Signature {
+        Signature::builder()
+            .hash_function("nthash".into()) // TODO: spec!
+            .class("draff_signature".into()) // TODO: spec!
+            .name(Some("draff_file".into())) // TODO: spec!
+            .signatures(vec![Signatures::UKHS(other)])
+            .build()
+            .unwrap()
     }
 }
 

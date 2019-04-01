@@ -40,9 +40,15 @@ pub struct FSStorage {
     pub(crate) basepath: PathBuf,
 }
 
+impl FSStorage {
+    pub fn builder() -> FSStorageBuilder {
+        FSStorageBuilder::default()
+    }
+}
+
 impl Storage for FSStorage {
     fn save(&mut self, _path: &str, _content: &[u8]) -> Result<(), Error> {
-        Ok(())
+        unimplemented!()
     }
 
     fn load(&self, path: &str) -> Result<Vec<u8>, Error> {

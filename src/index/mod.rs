@@ -31,7 +31,7 @@ use crate::signatures::{Signature, Signatures};
 
 pub type MHBT = SBT<Node<Nodegraph>, Dataset<Signature>>;
 
-pub type UKHSTree = SBT<Node<FlatUKHS>, Dataset<FlatUKHS>>;
+pub type UKHSTree = SBT<Node<FlatUKHS>, Dataset<Signature>>;
 
 pub trait Index {
     type Item;
@@ -111,8 +111,12 @@ where
 
 impl<T> Dataset<T>
 where
-    T: std::marker::Sync,
+    T: std::marker::Sync + Default,
 {
+    pub fn builder() -> DatasetBuilder<T> {
+        DatasetBuilder::default()
+    }
+
     pub fn name(&self) -> String {
         self.name.clone()
     }

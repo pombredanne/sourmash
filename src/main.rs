@@ -1,23 +1,20 @@
 use std::fs::File;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::rc::Rc;
 
-use bio::io::fasta;
 use clap::{load_yaml, App};
 use exitfailure::ExitFailure;
-use failure::{Error, ResultExt};
-use human_panic::setup_panic;
+use failure::Error;
 use lazy_init::Lazy;
-use log::{debug, error, info, LevelFilter};
-use ocf::{get_input, get_output, CompressionFormat};
+use log::{info, LevelFilter};
 
+use sourmash::cmd::{draff_index, draff_signature};
 use sourmash::index::sbt::scaffold;
 use sourmash::index::search::{
     search_minhashes, search_minhashes_containment, search_minhashes_find_best,
 };
-use sourmash::index::{Comparable, Dataset, DatasetBuilder, Index, UKHSTree, MHBT};
-use sourmash::signatures::ukhs::{FlatUKHS, MemberUKHS, UKHSTrait, UniqueUKHS};
+use sourmash::index::{Comparable, Dataset, DatasetBuilder, Index, MHBT};
 use sourmash::signatures::{Signature, Signatures, SigsTrait};
 
 struct Query<T> {
@@ -181,35 +178,6 @@ fn search_databases(
     Ok(results)
 }
 
-fn draff_signature(files: Vec<&str>, k: usize, w: usize) -> Result<(), Error> {
-    for filename in files {
-        // TODO: check for stdin?
-
-        let mut ukhs = MemberUKHS::new(k, w)?;
-
-        info!("Build signature for {} with W={}, K={}...", filename, w, k);
-
-        let (input, _) = get_input(filename)?;
-        let reader = fasta::Reader::new(input);
-
-        for record in reader.records() {
-            // TODO: N in sequence?
-            ukhs.add_sequence(record?.seq(), false)?;
-        }
-
-        let mut outfile = PathBuf::from(filename);
-        outfile.set_extension("sig");
-
-        let mut output = get_output(outfile.to_str().unwrap(), CompressionFormat::No)?;
-
-        let flat: FlatUKHS = ukhs.into();
-        flat.to_writer(&mut output)?
-    }
-    info!("Done.");
-
-    Ok(())
-}
-
 fn main() -> Result<(), ExitFailure> {
     //setup_panic!();
 
@@ -230,8 +198,17 @@ fn main() -> Result<(), ExitFailure> {
             let wsize: usize = cmd.value_of("wsize").unwrap().parse().unwrap();
 
             draff_signature(inputs, ksize, wsize)?;
+        }
+        Some("index") => {
+            let cmd = m.subcommand_matches("index").unwrap();
+            let inputs = cmd
+                .values_of("inputs")
+                .map(|vals| vals.collect::<Vec<_>>())
+                .unwrap();
 
-            Ok(())
+            let output: &str = cmd.value_of("output").unwrap();
+
+            draff_index(inputs, output)?;
         }
         Some("scaffold") => {
             let cmd = m.subcommand_matches("scaffold").unwrap();
@@ -243,7 +220,6 @@ fn main() -> Result<(), ExitFailure> {
             new_sbt.save_file("test")?;
 
             assert_eq!(new_sbt.datasets().len(), sbt.datasets().len());
-            Ok(())
         }
         Some("search") => {
             let cmd = m.subcommand_matches("search").unwrap();
@@ -345,12 +321,10 @@ fn main() -> Result<(), ExitFailure> {
                 info!("saving all matched signatures to \"{}\"", outname)
                 Signature::save_signatures([sr.match_sig for sr in results], args.save_matches)
             */
-
-            Ok(())
         }
         _ => {
             println!("{:?}", m);
-            Ok(())
         }
     }
+    Ok(())
 }

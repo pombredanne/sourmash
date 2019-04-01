@@ -32,6 +32,19 @@ subcommands:
             - inputs:
                 help: FASTA files
                 multiple: true
+    - index:
+        about: create a draff index
+        settings:
+            - ArgRequiredElseHelp
+        args:
+            - output:
+                help: alternative output file
+                short: o
+                takes_value: true
+                required: false
+            - inputs:
+                help: draff signatures
+                multiple: true
     - scaffold:
         about: create SBT scaffold
         settings:

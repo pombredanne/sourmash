@@ -91,7 +91,8 @@ impl Index for BIGSI<Signature> {
         F: Fn(&dyn Comparable<Self::Item>, &Self::Item, f64) -> bool,
     {
         // TODO: is there a better way than making this a runtime check?
-        Err(BIGSIError::MethodDisabled.into())
+        //Err(BIGSIError::MethodDisabled.into())
+        unimplemented!();
     }
 
     fn search(
@@ -143,15 +144,15 @@ impl Index for BIGSI<Signature> {
     }
 
     fn save<P: AsRef<Path>>(&self, _path: P) -> Result<(), Error> {
-        Ok(())
+        unimplemented!()
     }
 
     fn load<P: AsRef<Path>>(_path: P) -> Result<(), Error> {
-        Ok(())
+        unimplemented!()
     }
 
     fn datasets(&self) -> Vec<Self::Item> {
-        self.datasets.to_vec()
+        unimplemented!()
     }
 }
 
