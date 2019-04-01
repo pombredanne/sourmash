@@ -1,3 +1,6 @@
+pub mod mhbt;
+pub mod ukhs;
+
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
@@ -13,11 +16,9 @@ use failure::Error;
 use lazy_init::Lazy;
 use serde_derive::{Deserialize, Serialize};
 
-use crate::index::nodegraph::Nodegraph;
-use crate::index::storage::{FSStorage, ReadData, ReadDataError, Storage, StorageInfo};
+use crate::index::storage::{FSStorage, Storage, StorageInfo};
 use crate::index::{Comparable, Dataset, DatasetInfo, Index};
-use crate::signatures::ukhs::FlatUKHS;
-use crate::signatures::{Signature, Signatures, SigsTrait};
+use crate::signatures::Signature;
 
 #[derive(Builder)]
 pub struct SBT<N, L> {
@@ -335,121 +336,6 @@ where
     storage: Option<Rc<dyn Storage>>,
     #[builder(setter(skip))]
     pub(crate) data: Rc<Lazy<T>>,
-}
-
-impl Update<Node<FlatUKHS>> for Node<FlatUKHS> {
-    fn update(&self, _other: &mut Node<FlatUKHS>) {
-        unimplemented!();
-    }
-}
-
-impl Update<Node<Nodegraph>> for Node<Nodegraph> {
-    fn update(&self, _other: &mut Node<Nodegraph>) {
-        unimplemented!();
-    }
-}
-
-impl Update<Node<Nodegraph>> for Dataset<Signature> {
-    fn update(&self, _other: &mut Node<Nodegraph>) {
-        unimplemented!();
-    }
-}
-
-impl Update<Node<FlatUKHS>> for Dataset<Signature> {
-    fn update(&self, _other: &mut Node<FlatUKHS>) {
-        unimplemented!();
-    }
-}
-
-impl Comparable<Node<FlatUKHS>> for Node<FlatUKHS> {
-    fn similarity(&self, _other: &Node<FlatUKHS>) -> f64 {
-        unimplemented!();
-    }
-
-    fn containment(&self, _other: &Node<FlatUKHS>) -> f64 {
-        unimplemented!();
-    }
-}
-
-impl Comparable<Dataset<Signature>> for Node<FlatUKHS> {
-    fn similarity(&self, _other: &Dataset<Signature>) -> f64 {
-        unimplemented!();
-    }
-
-    fn containment(&self, _other: &Dataset<Signature>) -> f64 {
-        unimplemented!();
-    }
-}
-
-impl Comparable<Node<Nodegraph>> for Node<Nodegraph> {
-    fn similarity(&self, other: &Node<Nodegraph>) -> f64 {
-        let ng: &Nodegraph = self.data().unwrap();
-        let ong: &Nodegraph = other.data().unwrap();
-        ng.similarity(&ong)
-    }
-
-    fn containment(&self, other: &Node<Nodegraph>) -> f64 {
-        let ng: &Nodegraph = self.data().unwrap();
-        let ong: &Nodegraph = other.data().unwrap();
-        ng.containment(&ong)
-    }
-}
-
-impl Comparable<Dataset<Signature>> for Node<Nodegraph> {
-    fn similarity(&self, other: &Dataset<Signature>) -> f64 {
-        let ng: &Nodegraph = self.data().unwrap();
-        let oth: &Signature = other.data().unwrap();
-
-        // TODO: select the right signatures...
-        if let Signatures::MinHash(sig) = &oth.signatures[0] {
-            if sig.size() == 0 {
-                return 0.0;
-            }
-
-            let matches: usize = sig.mins.iter().map(|h| ng.get(*h)).sum();
-
-            let min_n_below = self.metadata["min_n_below"] as f64;
-
-            // This overestimates the similarity, but better than truncating too
-            // soon and losing matches
-            matches as f64 / min_n_below
-        } else {
-            //TODO what if it is not a minhash?
-            unimplemented!()
-        }
-    }
-
-    fn containment(&self, other: &Dataset<Signature>) -> f64 {
-        let ng: &Nodegraph = self.data().unwrap();
-        let oth: &Signature = other.data().unwrap();
-
-        // TODO: select the right signatures...
-        if let Signatures::MinHash(sig) = &oth.signatures[0] {
-            if sig.size() == 0 {
-                return 0.0;
-            }
-
-            let matches: usize = sig.mins.iter().map(|h| ng.get(*h)).sum();
-
-            matches as f64 / sig.size() as f64
-        } else {
-            //TODO what if it is not a minhash?
-            unimplemented!()
-        }
-    }
-}
-
-impl ReadData<Nodegraph> for Node<Nodegraph> {
-    fn data(&self) -> Result<&Nodegraph, Error> {
-        if let Some(storage) = &self.storage {
-            Ok(self.data.get_or_create(|| {
-                let raw = storage.load(&self.filename).unwrap();
-                Nodegraph::from_reader(&mut &raw[..]).unwrap()
-            }))
-        } else {
-            Err(ReadDataError::LoadError.into())
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize)]
