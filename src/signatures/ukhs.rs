@@ -1,6 +1,8 @@
+use std::f64::consts::PI;
 use std::fs::File;
 use std::hash::BuildHasherDefault;
 use std::io::{BufReader, BufWriter, Read, Write};
+use std::mem;
 use std::path::Path;
 use std::rc::Rc;
 
@@ -16,6 +18,7 @@ use ukhs;
 use crate::errors::SourmashError;
 use crate::index::nodegraph::Nodegraph;
 use crate::index::sbt::NoHashHasher;
+use crate::index::storage::ToWriter;
 use crate::index::Dataset;
 use crate::signatures::{Signature, Signatures, SigsTrait};
 
@@ -90,6 +93,10 @@ pub trait UKHSTrait: SigsTrait {
 
     fn reset(&mut self);
 
+    fn merge(&mut self, other: &Self);
+
+    fn distance(&self, other: &Self) -> f64;
+
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
     where
         W: Write;
@@ -118,6 +125,18 @@ pub trait UKHSTrait: SigsTrait {
     }
 }
 
+impl<T> ToWriter for UKHS<T>
+where
+    UKHS<T>: UKHSTrait<Storage = T>,
+{
+    fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        <UKHS<T> as UKHSTrait>::to_writer(self, writer)
+    }
+}
+
 impl UKHSTrait for UKHS<u64> {
     type Storage = u64;
 
@@ -133,6 +152,42 @@ impl UKHSTrait for UKHS<u64> {
 
     fn reset(&mut self) {
         self.buckets = vec![0; self.ukhs.len()];
+    }
+
+    fn merge(&mut self, other: &Self) {
+        let max_buckets = self
+            .buckets
+            .iter()
+            .zip(other.buckets.iter())
+            .map(|(c1, c2)| u64::max(*c1, *c2))
+            .collect();
+        mem::replace(&mut self.buckets, max_buckets);
+    }
+
+    fn distance(&self, other: &Self) -> f64 {
+        // TODO: don't iterate twice...
+        let prod: f64 = self
+            .buckets
+            .iter()
+            .zip(other.buckets.iter())
+            .map(|(a, b)| (a * b) as f64)
+            .sum();
+        let a_sq: f64 = self.buckets.iter().map(|a| (a * a) as f64).sum();
+        let b_sq: f64 = other.buckets.iter().map(|a| (a * a) as f64).sum();
+
+        if a_sq == 0. || b_sq == 0. {
+            return 0.;
+        }
+
+        let d = f64::min(prod / (a_sq.sqrt() * b_sq.sqrt()), 1.);
+
+        // TODO: which distance?
+        //
+        // this is the angular distance, which is a proper metric.
+        2. * d.acos() / PI
+        //
+        // this is the cosine distance as defined by scipy
+        //1. - d
     }
 
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
@@ -201,6 +256,14 @@ impl UKHSTrait for UKHS<Nodegraph> {
 
     fn reset(&mut self) {
         self.buckets = vec![Nodegraph::with_tables(100_000, 4, self.ukhs.w()); self.ukhs.len()];
+    }
+
+    fn merge(&mut self, other: &Self) {
+        unimplemented!()
+    }
+
+    fn distance(&self, other: &Self) -> f64 {
+        unimplemented!()
     }
 
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
@@ -295,6 +358,14 @@ impl UKHSTrait for UKHS<HLL> {
     fn reset(&mut self) {
         let bh = BuildHasherDefault::<NoHashHasher>::default();
         self.buckets = vec![HLL::with_hash(14, bh); self.ukhs.len()];
+    }
+
+    fn merge(&mut self, other: &Self) {
+        unimplemented!()
+    }
+
+    fn distance(&self, other: &Self) -> f64 {
+        unimplemented!()
     }
 
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>

@@ -9,7 +9,7 @@ use failure::Error;
 use lazy_init::Lazy;
 use log::{info, LevelFilter};
 
-use sourmash::cmd::{draff_index, draff_signature};
+use sourmash::cmd::{draff_compare, draff_index, draff_search, draff_signature};
 use sourmash::index::sbt::scaffold;
 use sourmash::index::search::{
     search_minhashes, search_minhashes_containment, search_minhashes_find_best,
@@ -198,6 +198,23 @@ fn main() -> Result<(), ExitFailure> {
             let wsize: usize = cmd.value_of("wsize").unwrap().parse().unwrap();
 
             draff_signature(inputs, ksize, wsize)?;
+        }
+        Some("draff_search") => {
+            let cmd = m.subcommand_matches("draff_search").unwrap();
+
+            let index: &str = cmd.value_of("index").unwrap();
+            let query: &str = cmd.value_of("query").unwrap();
+
+            draff_search(index, query)?;
+        }
+        Some("draff_compare") => {
+            let cmd = m.subcommand_matches("draff_compare").unwrap();
+            let inputs = cmd
+                .values_of("inputs")
+                .map(|vals| vals.collect::<Vec<_>>())
+                .unwrap();
+
+            draff_compare(inputs)?;
         }
         Some("index") => {
             let cmd = m.subcommand_matches("index").unwrap();

@@ -139,8 +139,9 @@ impl Index for BIGSI<Signature> {
         }
     }
 
-    fn insert(&mut self, node: &Self::Item) {
+    fn insert(&mut self, node: &Self::Item) -> Result<(), Error> {
         self.add(node.clone());
+        Ok(())
     }
 
     fn save<P: AsRef<Path>>(&self, _path: P) -> Result<(), Error> {

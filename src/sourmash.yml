@@ -45,6 +45,25 @@ subcommands:
             - inputs:
                 help: draff signatures
                 multiple: true
+    - draff_compare:
+        about: compare draff signatures
+        settings:
+            - ArgRequiredElseHelp
+        args:
+            - inputs:
+                help: draff signatures
+                multiple: true
+    - draff_search:
+        about: search a draff index
+        settings:
+            - ArgRequiredElseHelp
+        args:
+            - index:
+                help: index to search
+                required: true
+            - query:
+                help: draff signature to search
+                required: true
     - scaffold:
         about: create SBT scaffold
         settings:

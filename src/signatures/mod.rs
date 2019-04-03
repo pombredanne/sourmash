@@ -16,6 +16,7 @@ use failure::Error;
 use serde_derive::{Deserialize, Serialize};
 
 use crate::errors::SourmashError;
+use crate::index::storage::ToWriter;
 use crate::signatures::minhash::KmerMinHash;
 use crate::signatures::ukhs::FlatUKHS;
 
@@ -203,6 +204,18 @@ impl Signature {
         });
 
         Ok(filtered_sigs.collect())
+    }
+}
+
+impl ToWriter for Signature {
+    fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: io::Write,
+    {
+        match serde_json::to_writer(writer, &self) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(SourmashError::SerdeError.into()),
+        }
     }
 }
 

@@ -1,19 +1,36 @@
+use std::io::Write;
+
 use failure::Error;
 
 use crate::index::nodegraph::Nodegraph;
-use crate::index::sbt::{Node, Update};
-use crate::index::storage::{ReadData, ReadDataError};
+use crate::index::sbt::{FromFactory, Node, Update, SBT};
+use crate::index::storage::{ReadData, ReadDataError, ToWriter};
 use crate::index::{Comparable, Dataset};
 use crate::signatures::{Signature, Signatures, SigsTrait};
 
+impl ToWriter for Nodegraph {
+    fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        self.save_to_writer(writer)
+    }
+}
+
+impl<L> FromFactory<Node<Nodegraph>> for SBT<Node<Nodegraph>, L> {
+    fn factory(&self, name: &str) -> Result<Node<Nodegraph>, Error> {
+        unimplemented!()
+    }
+}
+
 impl Update<Node<Nodegraph>> for Node<Nodegraph> {
-    fn update(&self, _other: &mut Node<Nodegraph>) {
+    fn update(&self, _other: &mut Node<Nodegraph>) -> Result<(), Error> {
         unimplemented!();
     }
 }
 
 impl Update<Node<Nodegraph>> for Dataset<Signature> {
-    fn update(&self, _other: &mut Node<Nodegraph>) {
+    fn update(&self, _other: &mut Node<Nodegraph>) -> Result<(), Error> {
         unimplemented!();
     }
 }

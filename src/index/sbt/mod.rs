@@ -16,9 +16,19 @@ use failure::Error;
 use lazy_init::Lazy;
 use serde_derive::{Deserialize, Serialize};
 
-use crate::index::storage::{FSStorage, Storage, StorageInfo};
+use crate::index::storage::{FSStorage, Storage, StorageInfo, ToWriter};
 use crate::index::{Comparable, Dataset, DatasetInfo, Index};
 use crate::signatures::Signature;
+
+use crate::signatures::ukhs::{FlatUKHS, UKHSTrait};
+
+pub trait Update<O> {
+    fn update(&self, other: &mut O) -> Result<(), Error>;
+}
+
+pub trait FromFactory<N> {
+    fn factory(&self, name: &str) -> Result<N, Error>;
+}
 
 #[derive(Builder)]
 pub struct SBT<N, L> {
@@ -82,8 +92,8 @@ where
 
 impl<T, U> SBT<Node<U>, Dataset<T>>
 where
-    T: std::marker::Sync,
-    U: std::marker::Sync,
+    T: std::marker::Sync + ToWriter,
+    U: std::marker::Sync + ToWriter,
 {
     pub fn from_reader<R, P>(rdr: &mut R, path: P) -> Result<SBT<Node<U>, Dataset<T>>, Error>
     where
@@ -155,7 +165,7 @@ where
     pub fn save_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
         let mut args: HashMap<String, String> = HashMap::default();
         //TODO: read this from storage
-        args.insert("path".into(), ".".into());
+        args.insert("path".into(), ".sbt".into());
 
         let storage = StorageInfo {
             backend: "FSStorage".into(),
@@ -173,8 +183,10 @@ where
                 .nodes
                 .iter()
                 .map(|(n, l)| {
+                    // TODO: set storage to new one?
+                    let filename = (*l).save(&l.filename).unwrap();
                     let new_node = NodeInfo {
-                        filename: l.filename.clone(),
+                        filename: filename,
                         name: l.name.clone(),
                         metadata: l.metadata.clone(),
                     };
@@ -185,8 +197,10 @@ where
                 .leaves
                 .iter()
                 .map(|(n, l)| {
+                    // TODO: set storage to new one?
+                    let filename = (*l).save(&l.filename).unwrap();
                     let new_node = DatasetInfo {
-                        filename: l.filename.clone(),
+                        filename: filename,
                         name: l.name.clone(),
                         metadata: l.metadata.clone(),
                     };
@@ -202,14 +216,11 @@ where
     }
 }
 
-pub trait Update<O> {
-    fn update(&self, other: &mut O);
-}
-
 impl<N, L> Index for SBT<N, L>
 where
-    N: Comparable<N> + Comparable<L> + Update<N> + Default,
+    N: Comparable<N> + Comparable<L> + Update<N> + Debug + Default,
     L: Comparable<L> + Update<N> + Clone + Debug + Default,
+    SBT<N, L>: FromFactory<N>,
 {
     type Item = L;
 
@@ -227,12 +238,14 @@ where
                 visited.insert(pos);
 
                 if let Some(node) = self.nodes.get(&pos) {
+                    dbg!((node, sig, node.similarity(sig)));
                     if search_fn(&node, sig, threshold) {
                         for c in self.children(pos) {
                             queue.push(c);
                         }
                     }
                 } else if let Some(leaf) = self.leaves.get(&pos) {
+                    dbg!((leaf, sig, leaf.similarity(sig)));
                     if search_fn(leaf, sig, threshold) {
                         matches.push(leaf);
                     }
@@ -243,52 +256,33 @@ where
         Ok(matches)
     }
 
-    fn insert(&mut self, dataset: &L) {
+    fn insert(&mut self, dataset: &L) -> Result<(), Error> {
         if self.leaves.is_empty() {
             // in this case the tree is empty,
             // just add the dataset to the first available leaf
             self.leaves.entry(0).or_insert(dataset.clone());
-            return;
+            return Ok(());
         }
-
-        // TODO: find position by similarity search
-        let pos = match self.leaves.keys().max() {
-            Some(p) => *p + 1,
-            None => {
-                // empty tree; initialize w/node.
-
-                /* TODO: use factory to build new node
-                n = Node(self.factory, name="internal." + str(pos))
-                self.nodes[0] = n
-                */
-                1
-            }
-        };
 
         // we can unwrap here because the root node case
         // only happens on an empty tree, and if we got
         // to this point we have at least one leaf already.
+        // TODO: find position by similarity search
+        let pos = self.leaves.keys().max().unwrap() + 1;
         let parent_pos = self.parent(pos).unwrap();
 
-        // Case 1: parent is a Leaf
         if let Entry::Occupied(pnode) = self.leaves.entry(parent_pos) {
-            // create a new internal node, add it to self.nodes[parent_pos)
-            // TODO: we need the factory here...
-            let mut new_node = N::default();
-            /*
-            let new_node = Node {
-                name: format!("internal.{}", parent_pos).into(),
-                storage: Some(Rc::clone(&self.storage)),
-                data: Rc::new(Lazy::new()), // TODO: init nodegraph
-            };
-            */
+            // Case 1: parent is a Leaf
+            // create a new internal node, add it to self.nodes[parent_pos]
 
             let (_, leaf) = pnode.remove_entry();
 
+            let mut new_node = self.factory(&format!("internal.{}", parent_pos))?;
+
             // for each children update the parent node
             // TODO: write the update method
-            leaf.update(&mut new_node);
-            dataset.update(&mut new_node);
+            leaf.update(&mut new_node)?;
+            dataset.update(&mut new_node)?;
 
             // node and parent are children of new internal node
             let mut c_pos = self.children(parent_pos).into_iter().take(2);
@@ -301,9 +295,42 @@ where
             // add the new internal node to self.nodes[parent_pos)
             // TODO check if it is really empty?
             self.nodes.entry(parent_pos).or_insert(new_node);
+        } else {
+            // TODO: moved these two lines here to avoid borrow checker
+            // error E0502 in the Vacant case, but would love to avoid it!
+            let mut new_node = self.factory(&format!("internal.{}", parent_pos))?;
+            let c_pos = self.children(parent_pos)[0];
+
+            match self.nodes.entry(parent_pos) {
+                // Case 2: parent is a node and has an empty child spot available
+                // (if there isn't an empty spot, it was already covered by case 1)
+                Entry::Occupied(mut pnode) => {
+                    dataset.update(&mut pnode.get_mut())?;
+                    self.leaves.entry(pos).or_insert(dataset.clone());
+                }
+
+                // Case 3: parent is None/empty
+                // this can happen with d != 2, need to create parent node
+                Entry::Vacant(pnode) => {
+                    self.leaves.entry(c_pos).or_insert(dataset.clone());
+                    dataset.update(&mut new_node)?;
+                    pnode.insert(new_node);
+                }
+            }
         }
 
-        unimplemented!()
+        let mut parent_pos = parent_pos;
+        while let Some(ppos) = self.parent(parent_pos) {
+            if let Entry::Occupied(mut pnode) = self.nodes.entry(parent_pos) {
+                //TODO: use children for this node to update, instead of dragging
+                // dataset up to the root? It would be more generic, but this
+                // works for minhash, draff signatures and nodegraphs...
+                dataset.update(&mut pnode.get_mut())?;
+            }
+            parent_pos = ppos;
+        }
+
+        Ok(())
     }
 
     fn save<P: AsRef<Path>>(&self, _path: P) -> Result<(), Error> {
@@ -336,6 +363,62 @@ where
     storage: Option<Rc<dyn Storage>>,
     #[builder(setter(skip))]
     pub(crate) data: Rc<Lazy<T>>,
+}
+
+impl<T> Node<T>
+where
+    T: Sync + ToWriter,
+{
+    pub fn save(&self, path: &str) -> Result<String, Error> {
+        if let Some(storage) = &self.storage {
+            if let Some(data) = self.data.get() {
+                let mut buffer = Vec::new();
+                data.to_writer(&mut buffer)?;
+
+                Ok(storage.save(path, &buffer)?)
+            } else {
+                unimplemented!()
+            }
+        } else {
+            unimplemented!()
+        }
+    }
+}
+
+impl<T> Dataset<T>
+where
+    T: Sync + ToWriter,
+{
+    pub fn save(&self, path: &str) -> Result<String, Error> {
+        if let Some(storage) = &self.storage {
+            if let Some(data) = self.data.get() {
+                let mut buffer = Vec::new();
+                data.to_writer(&mut buffer)?;
+
+                Ok(storage.save(path, &buffer)?)
+            } else {
+                unimplemented!()
+            }
+        } else {
+            unimplemented!()
+        }
+    }
+}
+
+impl<T> std::fmt::Debug for Node<T>
+where
+    T: std::marker::Sync + std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Node [name={}, filename={}, metadata: {:?}, data: {:?}]",
+            self.name,
+            self.filename,
+            self.metadata,
+            self.data.get().is_some()
+        )
+    }
 }
 
 #[derive(Serialize, Deserialize)]

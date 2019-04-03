@@ -44,8 +44,9 @@ where
             .collect())
     }
 
-    fn insert(&mut self, node: &L) {
+    fn insert(&mut self, node: &L) -> Result<(), Error> {
         self.datasets.push(node.clone());
+        Ok(())
     }
 
     fn save<P: AsRef<Path>>(&self, _path: P) -> Result<(), Error> {

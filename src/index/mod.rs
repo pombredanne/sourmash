@@ -26,7 +26,7 @@ use crate::index::nodegraph::Nodegraph;
 use crate::index::sbt::{Node, SBT};
 use crate::index::search::{search_minhashes, search_minhashes_containment};
 use crate::index::storage::{ReadData, ReadDataError, Storage};
-use crate::signatures::ukhs::FlatUKHS;
+use crate::signatures::ukhs::{FlatUKHS, UKHSTrait};
 use crate::signatures::{Signature, Signatures};
 
 pub type MHBT = SBT<Node<Nodegraph>, Dataset<Signature>>;
@@ -60,7 +60,7 @@ pub trait Index {
 
     //fn gather(&self, sig: &Self::Item, threshold: f64) -> Result<Vec<&Self::Item>, Error>;
 
-    fn insert(&mut self, node: &Self::Item);
+    fn insert(&mut self, node: &Self::Item) -> Result<(), Error>;
 
     fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error>;
 
@@ -137,7 +137,9 @@ where
 
 impl ReadData<Signature> for Dataset<Signature> {
     fn data(&self) -> Result<&Signature, Error> {
-        if let Some(storage) = &self.storage {
+        if let Some(sig) = self.data.get() {
+            Ok(sig)
+        } else if let Some(storage) = &self.storage {
             let sig = self.data.get_or_create(|| {
                 let raw = storage.load(&self.filename).unwrap();
                 let sigs: Vec<Signature> = serde_json::from_reader(&mut &raw[..]).unwrap();
@@ -145,8 +147,6 @@ impl ReadData<Signature> for Dataset<Signature> {
                 sigs[0].to_owned()
             });
 
-            Ok(sig)
-        } else if let Some(sig) = self.data.get() {
             Ok(sig)
         } else {
             Err(ReadDataError::LoadError.into())
@@ -200,6 +200,13 @@ impl Comparable<Dataset<Signature>> for Dataset<Signature> {
                 return mh.compare(&omh).unwrap();
             }
         }
+
+        if let Signatures::UKHS(mh) = &ng.signatures[0] {
+            if let Signatures::UKHS(omh) = &ong.signatures[0] {
+                return 1. - mh.distance(&omh);
+            }
+        }
+
         unimplemented!()
     }
 
