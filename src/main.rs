@@ -232,9 +232,9 @@ fn main() -> Result<(), ExitFailure> {
             let sbt_file = cmd.value_of("current_sbt").unwrap();
 
             let sbt = MHBT::from_path(sbt_file)?;
-            let new_sbt: MHBT = scaffold(sbt.datasets());
+            let mut new_sbt: MHBT = scaffold(sbt.datasets());
 
-            new_sbt.save_file("test")?;
+            new_sbt.save_file("test", None)?;
 
             assert_eq!(new_sbt.datasets().len(), sbt.datasets().len());
         }

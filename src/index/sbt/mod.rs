@@ -8,6 +8,7 @@ use std::fs::File;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::io::{BufReader, Read};
 use std::iter::FromIterator;
+use std::mem;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -16,11 +17,9 @@ use failure::Error;
 use lazy_init::Lazy;
 use serde_derive::{Deserialize, Serialize};
 
-use crate::index::storage::{FSStorage, Storage, StorageInfo, ToWriter};
+use crate::index::storage::{FSStorage, ReadData, Storage, StorageInfo, ToWriter};
 use crate::index::{Comparable, Dataset, DatasetInfo, Index};
 use crate::signatures::Signature;
-
-use crate::signatures::ukhs::{FlatUKHS, UKHSTrait};
 
 pub trait Update<O> {
     fn update(&self, other: &mut O) -> Result<(), Error>;
@@ -94,6 +93,8 @@ impl<T, U> SBT<Node<U>, Dataset<T>>
 where
     T: std::marker::Sync + ToWriter,
     U: std::marker::Sync + ToWriter,
+    Node<U>: ReadData<U>,
+    Dataset<T>: ReadData<T>,
 {
     pub fn from_reader<R, P>(rdr: &mut R, path: P) -> Result<SBT<Node<U>, Dataset<T>>, Error>
     where
@@ -162,28 +163,45 @@ where
         Ok(sbt)
     }
 
-    pub fn save_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+    pub fn save_file<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        storage: Option<Rc<dyn Storage>>,
+    ) -> Result<(), Error> {
+        let storage = match storage {
+            Some(s) => s,
+            None => {
+                // TODO: set up new default storage
+                Rc::new(FSStorage {
+                    basepath: format!(".sbt.{}", "basename_path").into(),
+                })
+            }
+        };
+
         let mut args: HashMap<String, String> = HashMap::default();
         //TODO: read this from storage
         args.insert("path".into(), ".sbt".into());
 
-        let storage = StorageInfo {
+        let storage_info = StorageInfo {
             backend: "FSStorage".into(),
             args,
         };
 
-        //TODO: still need to trigger saving each node under storage!
-
         let info: SBTInfo<NodeInfo, DatasetInfo> = SBTInfo {
             d: self.d,
             factory: self.factory.clone(),
-            storage,
+            storage: storage_info,
             version: 5,
             nodes: self
                 .nodes
-                .iter()
+                .iter_mut()
                 .map(|(n, l)| {
-                    // TODO: set storage to new one?
+                    // Trigger data loading
+                    let _: &U = (*l).data().unwrap();
+
+                    // set storage to new one
+                    mem::replace(&mut l.storage, Some(Rc::clone(&storage)));
+
                     let filename = (*l).save(&l.filename).unwrap();
                     let new_node = NodeInfo {
                         filename: filename,
@@ -195,9 +213,14 @@ where
                 .collect(),
             leaves: self
                 .leaves
-                .iter()
+                .iter_mut()
                 .map(|(n, l)| {
-                    // TODO: set storage to new one?
+                    // Trigger data loading
+                    let _: &T = (*l).data().unwrap();
+
+                    // set storage to new one
+                    mem::replace(&mut l.storage, Some(Rc::clone(&storage)));
+
                     let filename = (*l).save(&l.filename).unwrap();
                     let new_node = DatasetInfo {
                         filename: filename,
@@ -377,6 +400,7 @@ where
 
                 Ok(storage.save(path, &buffer)?)
             } else {
+                // TODO throw error, data was not initialized
                 unimplemented!()
             }
         } else {
@@ -666,7 +690,7 @@ mod test {
 
     use super::scaffold;
 
-    use crate::index::linear::LinearIndexBuilder;
+    use crate::index::linear::LinearIndex;
     use crate::index::search::{search_minhashes, search_minhashes_containment};
     use crate::index::storage::Storage;
     use crate::index::{DatasetBuilder, Index, MHBT};
@@ -677,10 +701,10 @@ mod test {
         let mut filename = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         filename.push("tests/test-data/v5.sbt.json");
 
-        let sbt = MHBT::from_path(filename).expect("Loading error");
+        let mut sbt = MHBT::from_path(filename).expect("Loading error");
 
         let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
-        sbt.save_file(tmpfile.path()).unwrap();
+        sbt.save_file(tmpfile.path(), None).unwrap();
 
         tmpfile.seek(SeekFrom::Start(0)).unwrap();
 
@@ -732,12 +756,12 @@ mod test {
         println!("results: {:?}", results);
         println!("leaf: {:?}", leaf);
 
-        let mut linear = LinearIndexBuilder::default()
+        let mut linear = LinearIndex::builder()
             .storage(Rc::clone(&sbt.storage) as Rc<dyn Storage>)
             .build()
             .unwrap();
         for l in &sbt.leaves {
-            linear.insert(l.1);
+            linear.insert(l.1).unwrap();
         }
 
         println!(
@@ -778,7 +802,7 @@ mod test {
 
         let sbt = MHBT::from_path(filename).expect("Loading error");
 
-        let new_sbt: MHBT = scaffold(sbt.datasets());
+        let mut new_sbt: MHBT = scaffold(sbt.datasets());
 
         assert_eq!(new_sbt.datasets().len(), 7);
     }

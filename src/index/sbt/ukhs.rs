@@ -35,10 +35,20 @@ impl Update<Node<FlatUKHS>> for Node<FlatUKHS> {
 
 impl Update<Node<FlatUKHS>> for Dataset<Signature> {
     fn update(&self, other: &mut Node<FlatUKHS>) -> Result<(), Error> {
-        // TODO: select the right signatures...
-        if let Signatures::UKHS(sig) = &self.data()?.signatures[0] {
+        let data = &self.data()?;
+
+        let sigs = if data.signatures.len() > 1 {
+            // TODO: select the right signatures...
+            unimplemented!()
+        } else {
+            &data.signatures[0]
+        };
+
+        if let Signatures::UKHS(sig) = sigs {
             let mut data: FlatUKHS = other.data()?.clone();
             data.merge(sig);
+
+            // TODO update metadata?
 
             let new_data = Lazy::new();
             new_data.get_or_create(|| data);

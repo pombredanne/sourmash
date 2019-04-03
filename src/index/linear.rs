@@ -16,6 +16,15 @@ pub struct LinearIndex<L> {
     pub(crate) datasets: Vec<L>,
 }
 
+impl<L> LinearIndex<L>
+where
+    L: Default,
+{
+    pub fn builder() -> LinearIndexBuilder<L> {
+        LinearIndexBuilder::default()
+    }
+}
+
 impl<L> Index for LinearIndex<L>
 where
     L: Clone + Comparable<L>,

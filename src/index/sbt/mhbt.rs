@@ -18,7 +18,7 @@ impl ToWriter for Nodegraph {
 }
 
 impl<L> FromFactory<Node<Nodegraph>> for SBT<Node<Nodegraph>, L> {
-    fn factory(&self, name: &str) -> Result<Node<Nodegraph>, Error> {
+    fn factory(&self, _name: &str) -> Result<Node<Nodegraph>, Error> {
         unimplemented!()
     }
 }

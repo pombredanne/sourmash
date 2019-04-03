@@ -258,11 +258,11 @@ impl UKHSTrait for UKHS<Nodegraph> {
         self.buckets = vec![Nodegraph::with_tables(100_000, 4, self.ukhs.w()); self.ukhs.len()];
     }
 
-    fn merge(&mut self, other: &Self) {
+    fn merge(&mut self, _other: &Self) {
         unimplemented!()
     }
 
-    fn distance(&self, other: &Self) -> f64 {
+    fn distance(&self, _other: &Self) -> f64 {
         unimplemented!()
     }
 
@@ -360,11 +360,11 @@ impl UKHSTrait for UKHS<HLL> {
         self.buckets = vec![HLL::with_hash(14, bh); self.ukhs.len()];
     }
 
-    fn merge(&mut self, other: &Self) {
+    fn merge(&mut self, _other: &Self) {
         unimplemented!()
     }
 
-    fn distance(&self, other: &Self) -> f64 {
+    fn distance(&self, _other: &Self) -> f64 {
         unimplemented!()
     }
 
@@ -512,7 +512,8 @@ mod test {
     use bio::io::fasta::Reader;
     use ocf::get_input;
 
-    use super::*;
+    use super::{FlatUKHS, MemberUKHS, UKHSTrait};
+    use crate::signatures::SigsTrait;
 
     #[test]
     fn ukhs_add_sequence() {

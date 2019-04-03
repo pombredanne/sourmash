@@ -41,7 +41,7 @@ pub fn draff_index(sig_files: Vec<&str>, outfile: &str) -> Result<(), Error> {
     //let mut output = get_output(outfile, CompressionFormat::No)?;
     //index.to_writer(&mut output)?
 
-    index.save_file(outfile)
+    index.save_file(outfile, None)
 }
 
 pub fn draff_compare(sigs: Vec<&str>) -> Result<(), Error> {
