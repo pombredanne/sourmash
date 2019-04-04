@@ -232,7 +232,7 @@ fn main() -> Result<(), ExitFailure> {
             let sbt_file = cmd.value_of("current_sbt").unwrap();
 
             let sbt = MHBT::from_path(sbt_file)?;
-            let mut new_sbt: MHBT = scaffold(sbt.datasets());
+            let mut new_sbt: MHBT = scaffold(sbt.datasets(), Rc::clone(&sbt.storage()));
 
             new_sbt.save_file("test", None)?;
 

@@ -43,10 +43,22 @@ pub trait Storage {
 #[derive(Builder, Debug, Clone, Default)]
 pub struct FSStorage {
     /// absolute path for the directory where data is saved.
-    pub(crate) basepath: PathBuf,
+    pub(crate) fullpath: PathBuf,
+    pub(crate) subdir: String,
 }
 
 impl FSStorage {
+    pub fn new(location: &str, subdir: &str) -> FSStorage {
+        let mut fullpath = PathBuf::new();
+        fullpath.push(location);
+        fullpath.push(subdir);
+
+        FSStorage {
+            fullpath,
+            subdir: subdir.into(),
+        }
+    }
+
     pub fn builder() -> FSStorageBuilder {
         FSStorageBuilder::default()
     }
@@ -58,7 +70,7 @@ impl Storage for FSStorage {
             return Err(StorageError::EmptyPathError.into());
         }
 
-        let path = self.basepath.join(path);
+        let path = self.fullpath.join(path);
         DirBuilder::new()
             .recursive(true)
             .create(path.parent().unwrap())?;
@@ -70,7 +82,7 @@ impl Storage for FSStorage {
     }
 
     fn load(&self, path: &str) -> Result<Vec<u8>, Error> {
-        let path = self.basepath.join(path);
+        let path = self.fullpath.join(path);
         let file = File::open(path)?;
         let mut buf_reader = BufReader::new(file);
         let mut contents = Vec::new();

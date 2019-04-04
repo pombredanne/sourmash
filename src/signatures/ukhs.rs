@@ -159,12 +159,15 @@ impl UKHSTrait for UKHS<u64> {
             .buckets
             .iter()
             .zip(other.buckets.iter())
+            //.map(|(c1, c2)| (*c1 / 2) + (*c2 / 2))
             .map(|(c1, c2)| u64::max(*c1, *c2))
+            //.map(|(c1, c2)| u64::min(*c1, *c2))
             .collect();
         mem::replace(&mut self.buckets, max_buckets);
     }
 
     fn distance(&self, other: &Self) -> f64 {
+        /*
         // TODO: don't iterate twice...
         let prod: f64 = self
             .buckets
@@ -188,6 +191,24 @@ impl UKHSTrait for UKHS<u64> {
         //
         // this is the cosine distance as defined by scipy
         //1. - d
+        */
+
+        // This is the weighted Jaccard distance
+        // TODO: don't iterate twice...
+        let mins: u64 = self
+            .buckets
+            .iter()
+            .zip(other.buckets.iter())
+            .map(|(a, b)| u64::min(*a, *b))
+            .sum();
+        let maxs: u64 = self
+            .buckets
+            .iter()
+            .zip(other.buckets.iter())
+            .map(|(a, b)| u64::max(*a, *b))
+            .sum();
+
+        1. - (mins as f64 / maxs as f64)
     }
 
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>

@@ -13,10 +13,7 @@ use crate::signatures::{Signature, SigsTrait};
 
 pub fn draff_index(sig_files: Vec<&str>, outfile: &str) -> Result<(), Error> {
     let storage: Rc<dyn Storage> = Rc::new(
-        FSStorage::builder()
-            .basepath(".draff".into()) // TODO: use outfile
-            .build()
-            .unwrap(),
+        FSStorage::new(".".into(), ".draff".into()), // TODO: use outfile
     );
 
     let mut index = UKHSTree::builder()

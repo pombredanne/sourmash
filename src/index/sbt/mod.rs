@@ -109,9 +109,14 @@ where
         // add a function to build a Storage from a StorageInfo
         let mut basepath = PathBuf::new();
         basepath.push(path);
-        basepath.push(&sbt.storage.args["path"]);
 
-        let storage: Rc<dyn Storage> = Rc::new(FSStorage { basepath });
+        //basepath.push(&sbt.storage.args["path"]);
+
+        // TODO: basepath here should be parent?
+        let storage: Rc<dyn Storage> = Rc::new(FSStorage::new(
+            basepath.to_str().unwrap(),
+            &sbt.storage.args["path"],
+        ));
 
         Ok(SBT {
             d: sbt.d,
@@ -172,9 +177,14 @@ where
             Some(s) => s,
             None => {
                 // TODO: set up new default storage
-                Rc::new(FSStorage {
-                    basepath: format!(".sbt.{}", "basename_path").into(),
-                })
+                let basename = path.as_ref().to_path_buf();
+                if basename.ends_with(".sbt.json") {}
+
+                // TODO: file_name(), remove extension
+
+                let location = path.as_ref().parent().unwrap();
+                let subdir = format!(".sbt.{}", basename.to_str().unwrap());
+                Rc::new(FSStorage::new(location.to_str().unwrap(), &subdir))
             }
         };
 
@@ -501,7 +511,10 @@ struct TreeNode<T> {
     right: BinaryTree,
 }
 
-pub fn scaffold<N>(mut datasets: Vec<Dataset<Signature>>) -> SBT<Node<N>, Dataset<Signature>>
+pub fn scaffold<N>(
+    mut datasets: Vec<Dataset<Signature>>,
+    storage: Rc<dyn Storage>,
+) -> SBT<Node<N>, Dataset<Signature>>
 where
     N: std::marker::Sync + std::clone::Clone + std::default::Default,
 {
@@ -599,12 +612,6 @@ where
             }
         }
     }
-
-    // save the new tree
-    // TODO: make a proper basepath here!
-    let storage: Rc<dyn Storage> = Rc::new(FSStorage {
-        basepath: ".sbt".into(),
-    });
 
     SBTBuilder::default()
         .storage(storage)
@@ -802,7 +809,7 @@ mod test {
 
         let sbt = MHBT::from_path(filename).expect("Loading error");
 
-        let mut new_sbt: MHBT = scaffold(sbt.datasets());
+        let mut new_sbt: MHBT = scaffold(sbt.datasets(), Rc::clone(&sbt.storage));
 
         assert_eq!(new_sbt.datasets().len(), 7);
     }
