@@ -80,8 +80,27 @@ impl Comparable<Dataset<Signature>> for Node<FlatUKHS> {
             // TODO: select the right signatures...
             unimplemented!()
         } else if let Signatures::UKHS(o_sig) = &odata.signatures[0] {
+            // This is doing a variation of Weighted Jaccard.
+            // The internal nodes are built with max(l_i, r_i) for each
+            // left and right children, so if we do a WJ similarity directly
+            // we will underestimate it.
+            //
+            // Instead of doing sum(mins) / sum(max), we do instead
+            // sum(mins) / sum(sig_buckets), which might overestimate
+            // but will never loose any leaf.
+            // TODO: is this weighted containment?
+            //
+            // TODO: Still need to test with larger trees! Does it save any
+            // comparisons?
             let me_sig: &FlatUKHS = self.data().unwrap();
-            1.0 - me_sig.distance(o_sig)
+            let mins: u64 = me_sig
+                .buckets()
+                .zip(o_sig.buckets())
+                .map(|(a, b)| u64::min(*a, *b))
+                .sum();
+            let maxs: u64 = o_sig.buckets().sum();
+
+            mins as f64 / maxs as f64
         } else {
             // TODO: sig[0] was not a UKHS
             unimplemented!()

@@ -28,6 +28,12 @@ pub struct UKHS<T> {
     buckets: Vec<T>,
 }
 
+impl<'a, T> UKHS<T> {
+    pub fn buckets(&'a self) -> impl Iterator<Item = &'a T> {
+        self.buckets.iter()
+    }
+}
+
 impl<T> std::fmt::Debug for UKHS<T>
 where
     T: std::marker::Sync + std::fmt::Debug,
