@@ -18,9 +18,9 @@ use std::rc::Rc;
 
 use serde_derive::{Deserialize, Serialize};
 
-use derive_builder::Builder;
 use failure::Error;
 use lazy_init::Lazy;
+use typed_builder::TypedBuilder;
 
 use crate::index::nodegraph::Nodegraph;
 use crate::index::sbt::{Node, SBT};
@@ -95,7 +95,7 @@ pub struct DatasetInfo {
     pub metadata: String,
 }
 
-#[derive(Builder, Default, Clone)]
+#[derive(TypedBuilder, Default, Clone)]
 pub struct Dataset<T>
 where
     T: std::marker::Sync,
@@ -113,10 +113,6 @@ impl<T> Dataset<T>
 where
     T: std::marker::Sync + Default,
 {
-    pub fn builder() -> DatasetBuilder<T> {
-        DatasetBuilder::default()
-    }
-
     pub fn name(&self) -> String {
         self.name.clone()
     }

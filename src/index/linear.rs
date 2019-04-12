@@ -1,28 +1,19 @@
 use std::path::Path;
 use std::rc::Rc;
 
-use derive_builder::Builder;
 use failure::Error;
+use typed_builder::TypedBuilder;
 
 use crate::index::storage::Storage;
 use crate::index::{Comparable, Index};
 
-#[derive(Builder)]
+#[derive(TypedBuilder)]
 pub struct LinearIndex<L> {
     //#[builder(setter(skip))]
     storage: Rc<dyn Storage>,
 
-    #[builder(setter(skip))]
+    #[builder(default)]
     pub(crate) datasets: Vec<L>,
-}
-
-impl<L> LinearIndex<L>
-where
-    L: Default,
-{
-    pub fn builder() -> LinearIndexBuilder<L> {
-        LinearIndexBuilder::default()
-    }
 }
 
 impl<L> Index for LinearIndex<L>

@@ -16,10 +16,7 @@ pub fn draff_index(sig_files: Vec<&str>, outfile: &str) -> Result<(), Error> {
         FSStorage::new(".".into(), ".draff".into()), // TODO: use outfile
     );
 
-    let mut index = UKHSTree::builder()
-        .storage(Rc::clone(&storage))
-        .build()
-        .unwrap();
+    let mut index = UKHSTree::builder().storage(Rc::clone(&storage)).build();
 
     for filename in sig_files {
         // TODO: check for stdin? can also use get_input()?

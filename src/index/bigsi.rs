@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use derive_builder::Builder;
 use failure::{Error, Fail};
 use fixedbitset::FixedBitSet;
+use typed_builder::TypedBuilder;
 
 use crate::index::nodegraph::Nodegraph;
 use crate::index::{Comparable, Index};
 use crate::signatures::{Signature, Signatures, SigsTrait};
 use crate::HashIntoType;
 
-#[derive(Clone, Builder)]
+#[derive(Clone, TypedBuilder)]
 pub struct BIGSI<L> {
     matrix: Vec<FixedBitSet>,
     ksize: usize,
@@ -169,7 +169,7 @@ mod test {
     use super::BIGSI;
 
     use crate::index::storage::ReadData;
-    use crate::index::DatasetBuilder;
+    use crate::index::Dataset;
     use crate::index::{Index, MHBT};
     use crate::signatures::Signature;
 
@@ -193,14 +193,13 @@ mod test {
         let data = Lazy::new();
         data.get_or_create(|| sig_data);
 
-        let leaf = DatasetBuilder::default()
+        let leaf = Dataset::builder()
             .data(Rc::new(data))
-            .filename("".into())
-            .name("".into())
-            .metadata("".into())
+            .filename("")
+            .name("")
+            .metadata("")
             .storage(None)
-            .build()
-            .unwrap();
+            .build();
 
         for l in &datasets {
             let data = l.data().unwrap();

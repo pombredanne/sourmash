@@ -12,10 +12,10 @@ use std::mem;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use derive_builder::Builder;
 use failure::Error;
 use lazy_init::Lazy;
 use serde_derive::{Deserialize, Serialize};
+use typed_builder::TypedBuilder;
 
 use crate::index::storage::{FSStorage, ReadData, Storage, StorageInfo, ToWriter};
 use crate::index::{Comparable, Dataset, DatasetInfo, Index};
@@ -29,20 +29,20 @@ pub trait FromFactory<N> {
     fn factory(&self, name: &str) -> Result<N, Error>;
 }
 
-#[derive(Builder)]
+#[derive(TypedBuilder)]
 pub struct SBT<N, L> {
-    #[builder(default = "2")]
+    #[builder(default = 2)]
     d: u32,
 
     storage: Rc<dyn Storage>,
 
-    #[builder(setter(skip))]
+    #[builder(default)]
     factory: Factory,
 
-    #[builder(default = "HashMap::default()")]
+    #[builder(default_code = "HashMap::default()")]
     nodes: HashMap<u64, N>,
 
-    #[builder(default = "HashMap::default()")]
+    #[builder(default_code = "HashMap::default()")]
     leaves: HashMap<u64, L>,
 }
 
@@ -59,10 +59,6 @@ where
     L: std::clone::Clone + Default,
     N: Default,
 {
-    pub fn builder() -> SBTBuilder<N, L> {
-        SBTBuilder::default()
-    }
-
     #[inline(always)]
     fn parent(&self, pos: u64) -> Option<u64> {
         if pos == 0 {
@@ -379,13 +375,13 @@ where
     }
 }
 
-#[derive(Builder, Clone, Default, Serialize, Deserialize)]
+#[derive(TypedBuilder, Clone, Default, Serialize, Deserialize)]
 pub struct Factory {
     class: String,
     args: Vec<u64>,
 }
 
-#[derive(Builder, Default, Clone)]
+#[derive(TypedBuilder, Default, Clone)]
 pub struct Node<T>
 where
     T: std::marker::Sync,
@@ -394,7 +390,7 @@ where
     name: String,
     metadata: HashMap<String, u64>,
     storage: Option<Rc<dyn Storage>>,
-    #[builder(setter(skip))]
+    #[builder(default)]
     pub(crate) data: Rc<Lazy<T>>,
 }
 
@@ -613,12 +609,11 @@ where
         }
     }
 
-    SBTBuilder::default()
+    SBT::builder()
         .storage(storage)
         .nodes(HashMap::default())
         .leaves(leaves)
         .build()
-        .unwrap()
 }
 
 impl BinaryTree {
@@ -700,7 +695,7 @@ mod test {
     use crate::index::linear::LinearIndex;
     use crate::index::search::{search_minhashes, search_minhashes_containment};
     use crate::index::storage::Storage;
-    use crate::index::{DatasetBuilder, Index, MHBT};
+    use crate::index::{Dataset, Index, MHBT};
     use crate::signatures::Signature;
 
     #[test]
@@ -744,14 +739,13 @@ mod test {
         let data = Lazy::new();
         data.get_or_create(|| sig_data);
 
-        let leaf = DatasetBuilder::default()
+        let leaf = Dataset::builder()
             .data(Rc::new(data))
-            .filename("".into())
-            .name("".into())
-            .metadata("".into())
+            .filename("")
+            .name("")
+            .metadata("")
             .storage(None)
-            .build()
-            .unwrap();
+            .build();
 
         let results = sbt.find(search_minhashes, &leaf, 0.5).unwrap();
         assert_eq!(results.len(), 1);
@@ -765,8 +759,7 @@ mod test {
 
         let mut linear = LinearIndex::builder()
             .storage(Rc::clone(&sbt.storage) as Rc<dyn Storage>)
-            .build()
-            .unwrap();
+            .build();
         for l in &sbt.leaves {
             linear.insert(l.1).unwrap();
         }

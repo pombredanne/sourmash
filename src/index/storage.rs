@@ -3,9 +3,9 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
 
-use derive_builder::Builder;
 use failure::{Error, Fail};
 use serde_derive::{Deserialize, Serialize};
+use typed_builder::TypedBuilder;
 
 #[derive(Debug, Fail)]
 pub enum StorageError {
@@ -40,7 +40,7 @@ pub trait Storage {
 }
 
 /// Store files locally into a directory
-#[derive(Builder, Debug, Clone, Default)]
+#[derive(TypedBuilder, Debug, Clone, Default)]
 pub struct FSStorage {
     /// absolute path for the directory where data is saved.
     pub(crate) fullpath: PathBuf,
@@ -57,10 +57,6 @@ impl FSStorage {
             fullpath,
             subdir: subdir.into(),
         }
-    }
-
-    pub fn builder() -> FSStorageBuilder {
-        FSStorageBuilder::default()
     }
 }
 

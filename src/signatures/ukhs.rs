@@ -60,24 +60,22 @@ impl From<FlatUKHS> for Dataset<Signature> {
 
         Dataset::builder()
             .data(Rc::new(data))
-            .filename("".into())
-            .name("".into())
-            .metadata("".into())
+            .filename("")
+            .name("")
+            .metadata("")
             .storage(None)
             .build()
-            .unwrap()
     }
 }
 
 impl From<FlatUKHS> for Signature {
     fn from(other: FlatUKHS) -> Signature {
         Signature::builder()
-            .hash_function("nthash".into()) // TODO: spec!
-            .class("draff_signature".into()) // TODO: spec!
+            .hash_function("nthash") // TODO: spec!
+            .class("draff_signature") // TODO: spec!
             .name(Some("draff_file".into())) // TODO: spec!
             .signatures(vec![Signatures::UKHS(other)])
             .build()
-            .unwrap()
     }
 }
 

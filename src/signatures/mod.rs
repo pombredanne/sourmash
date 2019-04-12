@@ -11,9 +11,9 @@ use std::iter::Iterator;
 use std::path::Path;
 use std::str;
 
-use derive_builder::Builder;
 use failure::Error;
 use serde_derive::{Deserialize, Serialize};
+use typed_builder::TypedBuilder;
 
 use crate::errors::SourmashError;
 use crate::index::storage::ToWriter;
@@ -78,31 +78,31 @@ impl SigsTrait for Signatures {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Builder)]
+#[derive(Serialize, Deserialize, Debug, Clone, TypedBuilder)]
 pub struct Signature {
     #[serde(default = "default_class")]
-    #[builder(default = "default_class()")]
+    #[builder(default_code = "default_class()")]
     pub class: String,
 
     #[serde(default)]
-    #[builder(setter(skip))]
+    #[builder(default)]
     pub email: String,
 
     pub hash_function: String,
 
-    #[builder(setter(skip))]
+    #[builder(default)]
     pub filename: Option<String>,
 
     pub name: Option<String>,
 
     #[serde(default = "default_license")]
-    #[builder(default = "default_license()")]
+    #[builder(default_code = "default_license()")]
     pub license: String,
 
     pub signatures: Vec<Signatures>,
 
     #[serde(default = "default_version")]
-    #[builder(default = "default_version()")]
+    #[builder(default_code = "default_version()")]
     pub version: f64,
 }
 
@@ -119,10 +119,6 @@ fn default_version() -> f64 {
 }
 
 impl Signature {
-    pub fn builder() -> SignatureBuilder {
-        SignatureBuilder::default()
-    }
-
     pub fn name(&self) -> String {
         if let Some(name) = &self.name {
             name.clone()

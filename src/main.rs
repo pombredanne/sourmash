@@ -14,7 +14,7 @@ use sourmash::index::sbt::scaffold;
 use sourmash::index::search::{
     search_minhashes, search_minhashes_containment, search_minhashes_find_best,
 };
-use sourmash::index::{Comparable, Dataset, DatasetBuilder, Index, MHBT};
+use sourmash::index::{Comparable, Dataset, Index, MHBT};
 use sourmash::signatures::{Signature, Signatures, SigsTrait};
 
 struct Query<T> {
@@ -51,14 +51,13 @@ impl From<Query<Signature>> for Dataset<Signature> {
         let data = Lazy::new();
         data.get_or_create(|| other.data);
 
-        DatasetBuilder::default()
+        Dataset::builder()
             .data(Rc::new(data))
-            .filename("".into())
-            .name("".into())
-            .metadata("".into())
+            .filename("")
+            .name("")
+            .metadata("")
             .storage(None)
             .build()
-            .unwrap()
     }
 }
 
