@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use bio::io::fasta;
+use bio::io::fastx;
 use failure::Error;
 use log::info;
 use ocf::{get_input, get_output, CompressionFormat};
@@ -61,7 +61,7 @@ pub fn draff_search(index: &str, query: &str) -> Result<(), Error> {
     let sig = FlatUKHS::load(query)?;
     let dataset: Dataset<Signature> = sig.into();
 
-    for found in index.search(&dataset, 0.2, false)? {
+    for found in index.search(&dataset, 0.9, false)? {
         println!("{:.2}: {:?}", dataset.similarity(found), found);
     }
 
@@ -77,11 +77,28 @@ pub fn draff_signature(files: Vec<&str>, k: usize, w: usize) -> Result<(), Error
         info!("Build signature for {} with W={}, K={}...", filename, w, k);
 
         let (input, _) = get_input(filename)?;
-        let reader = fasta::Reader::new(input);
+        let reader = fastx::Reader::new(input);
 
         for record in reader.records() {
-            // TODO: N in sequence?
-            ukhs.add_sequence(record?.seq(), false)?;
+            let record = record?;
+
+            // if there is anything other than ACGT in sequence,
+            // it is replaced with A.
+            // This matches khmer and screed behavior
+            //
+            // NOTE: sourmash is different! It uses the force flag to drop
+            // k-mers that are not ACGT
+            let seq: Vec<u8> = record
+                .seq()
+                .iter()
+                .map(|&x| match x as char {
+                    'A' | 'C' | 'G' | 'T' => x,
+                    'a' | 'c' | 'g' | 't' => x.to_ascii_uppercase(),
+                    _ => 'A' as u8,
+                })
+                .collect();
+
+            ukhs.add_sequence(&seq, false)?;
         }
 
         let mut outfile = PathBuf::from(filename);
