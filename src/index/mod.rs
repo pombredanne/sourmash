@@ -26,8 +26,9 @@ use crate::index::nodegraph::Nodegraph;
 use crate::index::sbt::{Node, SBT};
 use crate::index::search::{search_minhashes, search_minhashes_containment};
 use crate::index::storage::{ReadData, ReadDataError, Storage};
-use crate::signatures::ukhs::{FlatUKHS, UKHSTrait};
-use crate::signatures::{Signature, Signatures};
+use crate::signature::Signature;
+use crate::sketch::ukhs::{FlatUKHS, UKHSTrait};
+use crate::sketch::Sketch;
 
 pub type MHBT = SBT<Node<Nodegraph>, Dataset<Signature>>;
 
@@ -157,8 +158,8 @@ impl Dataset<Signature> {
 
         // TODO: select the right signatures...
         // TODO: better matching here, what if it is not a mh?
-        if let Signatures::MinHash(mh) = &ng.signatures[0] {
-            if let Signatures::MinHash(omh) = &ong.signatures[0] {
+        if let Sketch::MinHash(mh) = &ng.signatures[0] {
+            if let Sketch::MinHash(omh) = &ong.signatures[0] {
                 return mh.count_common(&omh).unwrap() as u64;
             }
         }
@@ -170,7 +171,7 @@ impl Dataset<Signature> {
 
         // TODO: select the right signatures...
         // TODO: better matching here, what if it is not a mh?
-        if let Signatures::MinHash(mh) = &ng.signatures[0] {
+        if let Sketch::MinHash(mh) = &ng.signatures[0] {
             mh.mins.to_vec()
         } else {
             unimplemented!()
@@ -191,14 +192,14 @@ impl Comparable<Dataset<Signature>> for Dataset<Signature> {
 
         // TODO: select the right signatures...
         // TODO: better matching here, what if it is not a mh?
-        if let Signatures::MinHash(mh) = &ng.signatures[0] {
-            if let Signatures::MinHash(omh) = &ong.signatures[0] {
+        if let Sketch::MinHash(mh) = &ng.signatures[0] {
+            if let Sketch::MinHash(omh) = &ong.signatures[0] {
                 return mh.compare(&omh).unwrap();
             }
         }
 
-        if let Signatures::UKHS(mh) = &ng.signatures[0] {
-            if let Signatures::UKHS(omh) = &ong.signatures[0] {
+        if let Sketch::UKHS(mh) = &ng.signatures[0] {
+            if let Sketch::UKHS(omh) = &ong.signatures[0] {
                 return 1. - mh.distance(&omh);
             }
         }
@@ -212,8 +213,8 @@ impl Comparable<Dataset<Signature>> for Dataset<Signature> {
 
         // TODO: select the right signatures...
         // TODO: better matching here, what if it is not a mh?
-        if let Signatures::MinHash(mh) = &ng.signatures[0] {
-            if let Signatures::MinHash(omh) = &ong.signatures[0] {
+        if let Sketch::MinHash(mh) = &ng.signatures[0] {
+            if let Sketch::MinHash(omh) = &ong.signatures[0] {
                 let common = mh.count_common(&omh).unwrap();
                 let size = mh.mins.len();
                 return common as f64 / size as f64;

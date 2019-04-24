@@ -1,9 +1,6 @@
 //! # Compressed representations of genomic data
 //!
-//! A signature is a sketch of a genomic dataset.
-
-pub mod minhash;
-pub mod ukhs;
+//! A signature is a collection of sketches for a genomic dataset.
 
 use std::fs::File;
 use std::io;
@@ -17,15 +14,7 @@ use typed_builder::TypedBuilder;
 
 use crate::errors::SourmashError;
 use crate::index::storage::ToWriter;
-use crate::signatures::minhash::KmerMinHash;
-use crate::signatures::ukhs::FlatUKHS;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Signatures {
-    MinHash(KmerMinHash),
-    UKHS(FlatUKHS),
-}
+use crate::sketch::Sketch;
 
 pub trait SigsTrait {
     fn size(&self) -> usize;
@@ -35,36 +24,36 @@ pub trait SigsTrait {
     fn ksize(&self) -> usize;
 }
 
-impl SigsTrait for Signatures {
+impl SigsTrait for Sketch {
     fn size(&self) -> usize {
         match *self {
-            Signatures::UKHS(ref ukhs) => ukhs.size(),
-            Signatures::MinHash(ref mh) => mh.size(),
+            Sketch::UKHS(ref ukhs) => ukhs.size(),
+            Sketch::MinHash(ref mh) => mh.size(),
         }
     }
 
     fn to_vec(&self) -> Vec<u64> {
         match *self {
-            Signatures::UKHS(ref ukhs) => ukhs.to_vec(),
-            Signatures::MinHash(ref mh) => mh.to_vec(),
+            Sketch::UKHS(ref ukhs) => ukhs.to_vec(),
+            Sketch::MinHash(ref mh) => mh.to_vec(),
         }
     }
 
     fn ksize(&self) -> usize {
         match *self {
-            Signatures::UKHS(ref ukhs) => ukhs.ksize(),
-            Signatures::MinHash(ref mh) => mh.ksize(),
+            Sketch::UKHS(ref ukhs) => ukhs.ksize(),
+            Sketch::MinHash(ref mh) => mh.ksize(),
         }
     }
 
     fn check_compatible(&self, other: &Self) -> Result<(), Error> {
         match *self {
-            Signatures::UKHS(ref ukhs) => match other {
-                Signatures::UKHS(ref ot) => ukhs.check_compatible(ot),
+            Sketch::UKHS(ref ukhs) => match other {
+                Sketch::UKHS(ref ot) => ukhs.check_compatible(ot),
                 _ => Err(SourmashError::MismatchSignatureType.into()),
             },
-            Signatures::MinHash(ref mh) => match other {
-                Signatures::MinHash(ref ot) => mh.check_compatible(ot),
+            Sketch::MinHash(ref mh) => match other {
+                Sketch::MinHash(ref ot) => mh.check_compatible(ot),
                 _ => Err(SourmashError::MismatchSignatureType.into()),
             },
         }
@@ -72,8 +61,8 @@ impl SigsTrait for Signatures {
 
     fn add_sequence(&mut self, seq: &[u8], force: bool) -> Result<(), Error> {
         match *self {
-            Signatures::UKHS(ref mut ukhs) => ukhs.add_sequence(seq, force),
-            Signatures::MinHash(ref mut mh) => mh.add_sequence(seq, force),
+            Sketch::UKHS(ref mut ukhs) => ukhs.add_sequence(seq, force),
+            Sketch::MinHash(ref mut mh) => mh.add_sequence(seq, force),
         }
     }
 }
@@ -99,7 +88,7 @@ pub struct Signature {
     #[builder(default_code = "default_license()")]
     pub license: String,
 
-    pub signatures: Vec<Signatures>,
+    pub signatures: Vec<Sketch>,
 
     #[serde(default = "default_version")]
     #[builder(default_code = "default_version()")]
@@ -140,7 +129,7 @@ impl Signature {
 
     pub fn md5sum(&self) -> String {
         if self.signatures.len() == 1 {
-            if let Signatures::MinHash(mh) = &self.signatures[0] {
+            if let Sketch::MinHash(mh) = &self.signatures[0] {
                 mh.md5sum()
             } else {
                 // TODO: sig is not a minhash, what to do?
@@ -188,11 +177,11 @@ impl Signature {
         });
 
         let filtered_sigs = flat_sigs.filter_map(|mut sig| {
-            let good_mhs: Vec<Signatures> = sig
+            let good_mhs: Vec<Sketch> = sig
                 .signatures
                 .into_iter()
                 .filter(|sig| {
-                    if let Signatures::MinHash(mh) = sig {
+                    if let Sketch::MinHash(mh) = sig {
                         if ksize == 0 || ksize == mh.ksize() as usize {
                             match moltype {
                                 Some(x) => {
@@ -246,7 +235,7 @@ impl Default for Signature {
             license: default_license(),
             filename: None,
             name: None,
-            signatures: Vec::<Signatures>::new(),
+            signatures: Vec::<Sketch>::new(),
             version: default_version(),
         }
     }
@@ -262,8 +251,8 @@ impl PartialEq for Signature {
 
         // TODO: find the right signature
         // as long as we have a matching
-        if let Signatures::MinHash(mh) = &self.signatures[0] {
-            if let Signatures::MinHash(other_mh) = &other.signatures[0] {
+        if let Sketch::MinHash(mh) = &self.signatures[0] {
+            if let Sketch::MinHash(other_mh) = &other.signatures[0] {
                 return metadata && (mh == other_mh);
             }
         }

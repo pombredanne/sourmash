@@ -23,7 +23,8 @@ pub mod utils;
 
 pub mod index;
 
-pub mod signatures;
+pub mod signature;
+pub mod sketch;
 
 #[cfg(feature = "from-finch")]
 pub mod from;

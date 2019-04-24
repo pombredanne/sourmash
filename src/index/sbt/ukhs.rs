@@ -8,8 +8,9 @@ use lazy_init::Lazy;
 use crate::index::sbt::{FromFactory, Node, Update, SBT};
 use crate::index::storage::{ReadData, ReadDataError};
 use crate::index::{Comparable, Dataset};
-use crate::signatures::ukhs::{FlatUKHS, UKHSTrait};
-use crate::signatures::{Signature, Signatures};
+use crate::signature::Signature;
+use crate::sketch::ukhs::{FlatUKHS, UKHSTrait};
+use crate::sketch::Sketch;
 
 impl<L> FromFactory<Node<FlatUKHS>> for SBT<Node<FlatUKHS>, L> {
     fn factory(&self, name: &str) -> Result<Node<FlatUKHS>, Error> {
@@ -44,7 +45,7 @@ impl Update<Node<FlatUKHS>> for Dataset<Signature> {
             &data.signatures[0]
         };
 
-        if let Signatures::UKHS(sig) = sigs {
+        if let Sketch::UKHS(sig) = sigs {
             let mut data: FlatUKHS = other.data()?.clone();
             data.merge(sig);
 
@@ -79,7 +80,7 @@ impl Comparable<Dataset<Signature>> for Node<FlatUKHS> {
         if odata.signatures.len() > 1 {
             // TODO: select the right signatures...
             unimplemented!()
-        } else if let Signatures::UKHS(o_sig) = &odata.signatures[0] {
+        } else if let Sketch::UKHS(o_sig) = &odata.signatures[0] {
             // This is doing a variation of Weighted Jaccard.
             // The internal nodes are built with max(l_i, r_i) for each
             // left and right children, so if we do a WJ similarity directly

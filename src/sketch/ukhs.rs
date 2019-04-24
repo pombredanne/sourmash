@@ -20,7 +20,8 @@ use crate::index::nodegraph::Nodegraph;
 use crate::index::sbt::NoHashHasher;
 use crate::index::storage::ToWriter;
 use crate::index::Dataset;
-use crate::signatures::{Signature, Signatures, SigsTrait};
+use crate::signature::{Signature, SigsTrait};
+use crate::sketch::Sketch;
 
 #[derive(Clone)]
 pub struct UKHS<T> {
@@ -80,7 +81,7 @@ impl From<FlatUKHS> for Signature {
             .hash_function("nthash") // TODO: spec!
             .class("draff_signature") // TODO: spec!
             .name(Some("draff_file".into())) // TODO: spec!
-            .signatures(vec![Signatures::UKHS(other)])
+            .signatures(vec![Sketch::UKHS(other)])
             .build()
     }
 }
@@ -538,7 +539,7 @@ mod test {
     use ocf::get_input;
 
     use super::{FlatUKHS, MemberUKHS, UKHSTrait};
-    use crate::signatures::SigsTrait;
+    use crate::signature::SigsTrait;
 
     #[test]
     fn ukhs_add_sequence() {

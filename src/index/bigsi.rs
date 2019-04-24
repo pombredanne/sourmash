@@ -7,7 +7,8 @@ use typed_builder::TypedBuilder;
 
 use crate::index::nodegraph::Nodegraph;
 use crate::index::{Comparable, Index};
-use crate::signatures::{Signature, Signatures, SigsTrait};
+use crate::signature::{Signature, SigsTrait};
+use crate::sketch::Sketch;
 use crate::HashIntoType;
 
 #[derive(Clone, TypedBuilder)]
@@ -46,7 +47,7 @@ impl BIGSI<Signature> {
         let mut ng = Nodegraph::new(&[self.matrix.len()], self.ksize);
 
         // TODO: select correct minhash
-        if let Signatures::MinHash(mh) = &dataset.signatures[0] {
+        if let Sketch::MinHash(mh) = &dataset.signatures[0] {
             for h in &mh.mins {
                 ng.count(*h);
             }
@@ -104,7 +105,7 @@ impl Index for BIGSI<Signature> {
         let mut results = Vec::new();
 
         //TODO: still assuming one mh in the signature!
-        if let Signatures::MinHash(hashes) = &sig.signatures[0] {
+        if let Sketch::MinHash(hashes) = &sig.signatures[0] {
             let mut counter: HashMap<usize, usize> = HashMap::with_capacity(hashes.size());
 
             for hash in &hashes.mins {
@@ -171,7 +172,7 @@ mod test {
     use crate::index::storage::ReadData;
     use crate::index::Dataset;
     use crate::index::{Index, MHBT};
-    use crate::signatures::Signature;
+    use crate::signature::Signature;
 
     #[test]
     fn bigsi_sbt_oracle() {

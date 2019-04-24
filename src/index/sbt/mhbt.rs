@@ -6,7 +6,8 @@ use crate::index::nodegraph::Nodegraph;
 use crate::index::sbt::{FromFactory, Node, Update, SBT};
 use crate::index::storage::{ReadData, ReadDataError, ToWriter};
 use crate::index::{Comparable, Dataset};
-use crate::signatures::{Signature, Signatures, SigsTrait};
+use crate::signature::{Signature, SigsTrait};
+use crate::sketch::Sketch;
 
 impl ToWriter for Nodegraph {
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
@@ -55,7 +56,7 @@ impl Comparable<Dataset<Signature>> for Node<Nodegraph> {
         let oth: &Signature = other.data().unwrap();
 
         // TODO: select the right signatures...
-        if let Signatures::MinHash(sig) = &oth.signatures[0] {
+        if let Sketch::MinHash(sig) = &oth.signatures[0] {
             if sig.size() == 0 {
                 return 0.0;
             }
@@ -78,7 +79,7 @@ impl Comparable<Dataset<Signature>> for Node<Nodegraph> {
         let oth: &Signature = other.data().unwrap();
 
         // TODO: select the right signatures...
-        if let Signatures::MinHash(sig) = &oth.signatures[0] {
+        if let Sketch::MinHash(sig) = &oth.signatures[0] {
             if sig.size() == 0 {
                 return 0.0;
             }

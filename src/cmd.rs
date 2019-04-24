@@ -8,8 +8,8 @@ use ocf::{get_input, get_output, CompressionFormat};
 
 use crate::index::storage::{FSStorage, Storage};
 use crate::index::{Comparable, Dataset, Index, UKHSTree};
-use crate::signatures::ukhs::{FlatUKHS, UKHSTrait, UniqueUKHS};
-use crate::signatures::{Signature, SigsTrait};
+use crate::signature::{Signature, SigsTrait};
+use crate::sketch::ukhs::{FlatUKHS, UKHSTrait, UniqueUKHS};
 
 pub fn draff_index(sig_files: Vec<&str>, outfile: &str) -> Result<(), Error> {
     let storage: Rc<dyn Storage> = Rc::new(

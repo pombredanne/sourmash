@@ -12,7 +12,7 @@ use lazy_static::lazy_static;
 
 use crate::_hash_murmur;
 use crate::errors::SourmashError;
-use crate::signatures::SigsTrait;
+use crate::signature::SigsTrait;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;

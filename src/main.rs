@@ -19,7 +19,8 @@ use sourmash::index::search::{
     search_minhashes, search_minhashes_containment, search_minhashes_find_best,
 };
 use sourmash::index::{Comparable, Dataset, Index, MHBT};
-use sourmash::signatures::{Signature, Signatures, SigsTrait};
+use sourmash::signature::{Signature, SigsTrait};
+use sourmash::sketch::Sketch;
 
 struct Query<T> {
     data: T,
@@ -33,7 +34,7 @@ impl Query<Signature> {
 
     fn moltype(&self) -> String {
         // TODO: this might panic
-        if let Signatures::MinHash(mh) = &self.data.signatures[0] {
+        if let Sketch::MinHash(mh) = &self.data.signatures[0] {
             if mh.is_protein() {
                 "protein".into()
             } else {

@@ -19,7 +19,7 @@ use typed_builder::TypedBuilder;
 
 use crate::index::storage::{FSStorage, ReadData, Storage, StorageInfo, ToWriter};
 use crate::index::{Comparable, Dataset, DatasetInfo, Index};
-use crate::signatures::Signature;
+use crate::signature::Signature;
 
 pub trait Update<O> {
     fn update(&self, other: &mut O) -> Result<(), Error>;
@@ -696,7 +696,7 @@ mod test {
     use crate::index::search::{search_minhashes, search_minhashes_containment};
     use crate::index::storage::Storage;
     use crate::index::{Dataset, Index, MHBT};
-    use crate::signatures::Signature;
+    use crate::signature::Signature;
 
     #[test]
     fn save_sbt() {

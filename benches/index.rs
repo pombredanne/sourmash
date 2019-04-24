@@ -5,11 +5,11 @@ use std::path::PathBuf;
 
 use criterion::{Bencher, Criterion, Fun};
 use sourmash::index::bigsi::BIGSI;
-use sourmash::index::linear::LinearIndexBuilder;
-use sourmash::index::sbt::MHBT;
+use sourmash::index::linear::LinearIndex;
 use sourmash::index::storage::ReadData;
+use sourmash::index::MHBT;
 use sourmash::index::{Dataset, Index};
-use sourmash::signatures::Signature;
+use sourmash::signature::Signature;
 
 fn find_small_bench(c: &mut Criterion) {
     let mut filename = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -19,10 +19,8 @@ fn find_small_bench(c: &mut Criterion) {
 
     let leaf: Dataset<Signature> = (*sbt.datasets().first().unwrap()).clone();
 
-    let mut linear = LinearIndexBuilder::default()
-        .storage(sbt.storage())
-        .build()
-        .unwrap();
+    let mut linear = LinearIndex::builder().storage(sbt.storage()).build();
+
     for l in &sbt.datasets() {
         linear.insert(l);
     }
@@ -65,10 +63,7 @@ fn find_subset_bench(c: &mut Criterion) {
 
     let leaf: Dataset<Signature> = (*sbt.datasets().first().unwrap()).clone();
 
-    let mut linear = LinearIndexBuilder::default()
-        .storage(sbt.storage())
-        .build()
-        .unwrap();
+    let mut linear = LinearIndex::builder().storage(sbt.storage()).build();
     for l in &sbt.datasets() {
         linear.insert(l);
     }
