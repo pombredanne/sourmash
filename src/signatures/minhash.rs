@@ -53,21 +53,13 @@ impl Serialize for KmerMinHash {
             _ => 7,
         };
 
-        let mut md5_ctx = md5::Context::new();
-        md5_ctx.consume(&self.ksize.to_string());
-        self.mins
-            .iter()
-            .map(|x| md5_ctx.consume(x.to_string()))
-            .count();
-
         let mut partial = serializer.serialize_struct("KmerMinHash", n_fields)?;
         partial.serialize_field("num", &self.num)?;
         partial.serialize_field("ksize", &self.ksize)?;
         partial.serialize_field("seed", &self.seed)?;
         partial.serialize_field("max_hash", &self.max_hash)?;
         partial.serialize_field("mins", &self.mins)?;
-
-        partial.serialize_field("md5sum", &format!("{:x}", md5_ctx.compute()))?;
+        partial.serialize_field("md5sum", &self.md5sum())?;
 
         if let Some(abunds) = &self.abunds {
             partial.serialize_field("abundances", abunds)?;
@@ -171,6 +163,16 @@ impl KmerMinHash {
 
     pub fn max_hash(&self) -> u64 {
         self.max_hash
+    }
+
+    pub fn md5sum(&self) -> String {
+        let mut md5_ctx = md5::Context::new();
+        md5_ctx.consume(self.ksize().to_string());
+        self.mins
+            .iter()
+            .map(|x| md5_ctx.consume(x.to_string()))
+            .count();
+        format!("{:x}", md5_ctx.compute())
     }
 
     pub fn add_hash(&mut self, hash: u64) {

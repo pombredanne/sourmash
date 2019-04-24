@@ -267,14 +267,14 @@ where
                 visited.insert(pos);
 
                 if let Some(node) = self.nodes.get(&pos) {
-                    dbg!((node, sig, node.similarity(sig)));
+                    //dbg!((node, sig, node.similarity(sig)));
                     if search_fn(&node, sig, threshold) {
                         for c in self.children(pos) {
                             queue.push(c);
                         }
                     }
                 } else if let Some(leaf) = self.leaves.get(&pos) {
-                    dbg!((leaf, sig, leaf.similarity(sig)));
+                    //dbg!((leaf, sig, leaf.similarity(sig)));
                     if search_fn(leaf, sig, threshold) {
                         matches.push(leaf);
                     }

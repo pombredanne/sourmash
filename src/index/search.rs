@@ -13,9 +13,22 @@ pub fn search_minhashes_containment<L>(
 }
 
 pub fn search_minhashes_find_best<L>() -> fn(&dyn Comparable<L>, &L, f64) -> bool {
+    /* TODO: implement the proper function, as a closure that modifies `best_so_far`
     let mut _best_so_far = 0.;
 
-    // TODO: implement the proper function, as a closure that modifies
-    // `best_so_far`
-    search_minhashes
+    move |node, query, threshold| {
+        let sim = node.similarity(query);
+        if sim > best_so_far {
+            best_so_far = sim;
+            true
+        } else {
+            if sim > threshold {
+                true
+            } else {
+                false
+            }
+        }
+    }
+    */
+    unimplemented!();
 }

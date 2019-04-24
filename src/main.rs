@@ -6,8 +6,12 @@ use std::rc::Rc;
 use clap::{load_yaml, App};
 use exitfailure::ExitFailure;
 use failure::Error;
+use human_panic::setup_panic;
 use lazy_init::Lazy;
 use log::{info, LevelFilter};
+use ocf::{get_output, CompressionFormat};
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
 use sourmash::cmd::{draff_compare, draff_index, draff_search, draff_signature};
 use sourmash::index::sbt::scaffold;
@@ -135,6 +139,21 @@ fn load_sbts_and_sigs(
 struct Results {
     similarity: f64,
     match_sig: Signature,
+    db: String,
+}
+
+impl Serialize for Results {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut partial = serializer.serialize_struct("Results", 4)?;
+        partial.serialize_field("similarity", &self.similarity)?;
+        partial.serialize_field("name", &self.match_sig.name())?;
+        partial.serialize_field("filename", &self.db)?;
+        partial.serialize_field("md5", &self.match_sig.md5sum())?;
+        partial.end()
+    }
 }
 
 fn search_databases(
@@ -168,6 +187,7 @@ fn search_databases(
                 results.push(Results {
                     similarity,
                     match_sig: dataset.clone().into(),
+                    db: db.path.clone(),
                 })
             }
         }
@@ -178,7 +198,7 @@ fn search_databases(
 }
 
 fn main() -> Result<(), ExitFailure> {
-    //setup_panic!();
+    setup_panic!();
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
@@ -249,7 +269,8 @@ fn main() -> Result<(), ExitFailure> {
                 if cmd.is_present("ksize") {
                     cmd.value_of("ksize").unwrap().parse().unwrap()
                 } else {
-                    0
+                    // TODO default k
+                    unimplemented!()
                 },
                 Some("dna"), // TODO: select moltype,
                 if cmd.is_present("scaled") {
@@ -265,6 +286,8 @@ fn main() -> Result<(), ExitFailure> {
                 query.ksize(),
                 query.moltype()
             );
+
+            // TODO: check args.scaled and downsample
 
             let containment = cmd.is_present("containment");
             let traverse_directory = cmd.is_present("traverse-directory");
@@ -321,22 +344,23 @@ fn main() -> Result<(), ExitFailure> {
                 info!("** reporting only one match because --best-only was set")
             }
 
-            /*
-            if args.output:
-                fieldnames = ['similarity', 'name', 'filename', 'md5']
-                w = csv.DictWriter(args.output, fieldnames=fieldnames)
-                w.writeheader()
+            if let Some(output) = cmd.value_of("output") {
+                let mut wrt = csv::Writer::from_path(output)?;
 
-                for sr in &results:
-                    d = dict(sr._asdict())
-                    del d['match_sig']
-                    w.writerow(d)
+                for sr in &results[..n_matches] {
+                    wrt.serialize(sr)?;
+                }
+                wrt.flush()?;
+            };
 
-            if args.save_matches:
-                outname = args.save_matches.name
-                info!("saving all matched signatures to \"{}\"", outname)
-                Signature::save_signatures([sr.match_sig for sr in results], args.save_matches)
-            */
+            if let Some(outname) = cmd.value_of("save-matches") {
+                let writer = get_output(outname, CompressionFormat::No)?;
+
+                info!("saving all matched signatures to \"{}\"", outname);
+
+                let sigs: Vec<Signature> = results.into_iter().map(|sr| sr.match_sig).collect();
+                serde_json::to_writer(writer, &sigs)?;
+            }
         }
         _ => {
             println!("{:?}", m);

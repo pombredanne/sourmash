@@ -130,6 +130,28 @@ impl Signature {
         }
     }
 
+    pub fn filename(&self) -> String {
+        if let Some(filename) = &self.filename {
+            filename.clone()
+        } else {
+            unimplemented!()
+        }
+    }
+
+    pub fn md5sum(&self) -> String {
+        if self.signatures.len() == 1 {
+            if let Signatures::MinHash(mh) = &self.signatures[0] {
+                mh.md5sum()
+            } else {
+                // TODO: sig is not a minhash, what to do?
+                unimplemented!()
+            }
+        } else {
+            // TODO: select the correct signature
+            unimplemented!()
+        }
+    }
+
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Vec<Signature>, Error> {
         let mut reader = io::BufReader::new(File::open(path)?);
         Ok(Signature::from_reader(&mut reader)?)

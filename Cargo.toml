@@ -56,6 +56,7 @@ primal = "0.2.3"
 pdatastructs = "0.5.0"
 itertools = "0.8.0"
 typed-builder = "0.3.0"
+csv = "1.0.7"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.wasm-bindgen]
 version = "^0.2"
