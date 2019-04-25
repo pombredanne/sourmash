@@ -5,9 +5,9 @@ use failure::{Error, Fail};
 use fixedbitset::FixedBitSet;
 use typed_builder::TypedBuilder;
 
-use crate::index::nodegraph::Nodegraph;
 use crate::index::{Comparable, Index};
 use crate::signature::{Signature, SigsTrait};
+use crate::sketch::nodegraph::Nodegraph;
 use crate::sketch::Sketch;
 use crate::HashIntoType;
 

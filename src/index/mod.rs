@@ -9,8 +9,6 @@ pub mod sbt;
 
 pub mod storage;
 
-pub mod nodegraph;
-
 pub mod search;
 
 use std::path::Path;
@@ -22,11 +20,11 @@ use failure::Error;
 use lazy_init::Lazy;
 use typed_builder::TypedBuilder;
 
-use crate::index::nodegraph::Nodegraph;
 use crate::index::sbt::{Node, SBT};
 use crate::index::search::{search_minhashes, search_minhashes_containment};
 use crate::index::storage::{ReadData, ReadDataError, Storage};
 use crate::signature::Signature;
+use crate::sketch::nodegraph::Nodegraph;
 use crate::sketch::ukhs::{FlatUKHS, UKHSTrait};
 use crate::sketch::Sketch;
 

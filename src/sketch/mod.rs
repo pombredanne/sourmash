@@ -1,4 +1,5 @@
 pub mod minhash;
+pub mod nodegraph;
 pub mod ukhs;
 
 use serde_derive::{Deserialize, Serialize};

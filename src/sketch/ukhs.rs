@@ -16,11 +16,11 @@ use serde_derive::Deserialize;
 use ukhs;
 
 use crate::errors::SourmashError;
-use crate::index::nodegraph::Nodegraph;
 use crate::index::sbt::NoHashHasher;
 use crate::index::storage::ToWriter;
 use crate::index::Dataset;
 use crate::signature::{Signature, SigsTrait};
+use crate::sketch::nodegraph::Nodegraph;
 use crate::sketch::Sketch;
 
 #[derive(Clone)]

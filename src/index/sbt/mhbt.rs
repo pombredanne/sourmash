@@ -2,11 +2,11 @@ use std::io::Write;
 
 use failure::Error;
 
-use crate::index::nodegraph::Nodegraph;
 use crate::index::sbt::{FromFactory, Node, Update, SBT};
 use crate::index::storage::{ReadData, ReadDataError, ToWriter};
 use crate::index::{Comparable, Dataset};
 use crate::signature::{Signature, SigsTrait};
+use crate::sketch::nodegraph::Nodegraph;
 use crate::sketch::Sketch;
 
 impl ToWriter for Nodegraph {
