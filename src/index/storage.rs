@@ -27,7 +27,30 @@ pub trait ReadData<D> {
 #[derive(Serialize, Deserialize)]
 pub(crate) struct StorageInfo {
     pub(crate) backend: String,
-    pub(crate) args: HashMap<String, String>,
+    pub(crate) args: StorageArgs,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum StorageArgs {
+    FSStorage { path: String },
+}
+
+impl From<&StorageArgs> for FSStorage {
+    fn from(other: &StorageArgs) -> FSStorage {
+        if let StorageArgs::FSStorage { path } = other {
+            let mut fullpath = PathBuf::new();
+            fullpath.push(".");
+            fullpath.push(path);
+
+            FSStorage {
+                fullpath: fullpath,
+                subdir: path.clone(),
+            }
+        } else {
+            unimplemented!()
+        }
+    }
 }
 
 /// An abstraction for any place where we can store data.
@@ -37,6 +60,9 @@ pub trait Storage {
 
     /// Load bytes from path
     fn load(&self, path: &str) -> Result<Vec<u8>, Error>;
+
+    /// Args for initializing a new Storage
+    fn args(&self) -> StorageArgs;
 }
 
 /// Store files locally into a directory
@@ -57,6 +83,13 @@ impl FSStorage {
             fullpath,
             subdir: subdir.into(),
         }
+    }
+
+    pub fn set_base(&mut self, location: &str) {
+        let mut fullpath = PathBuf::new();
+        fullpath.push(location);
+        fullpath.push(&self.subdir);
+        self.fullpath = fullpath;
     }
 }
 
@@ -84,6 +117,12 @@ impl Storage for FSStorage {
         let mut contents = Vec::new();
         buf_reader.read_to_end(&mut contents)?;
         Ok(contents)
+    }
+
+    fn args(&self) -> StorageArgs {
+        StorageArgs::FSStorage {
+            path: self.subdir.clone(),
+        }
     }
 }
 

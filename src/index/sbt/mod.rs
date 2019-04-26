@@ -101,18 +101,10 @@ where
         // solution for loading v4 and v5
         let sbt: SBTInfo<NodeInfo, DatasetInfo> = serde_json::from_reader(rdr)?;
 
-        // TODO: match with available Storage while we don't
-        // add a function to build a Storage from a StorageInfo
-        let mut basepath = PathBuf::new();
-        basepath.push(path);
-
-        //basepath.push(&sbt.storage.args["path"]);
-
-        // TODO: basepath here should be parent?
-        let storage: Rc<dyn Storage> = Rc::new(FSStorage::new(
-            basepath.to_str().unwrap(),
-            &sbt.storage.args["path"],
-        ));
+        // TODO: support other storages
+        let mut st: FSStorage = (&sbt.storage.args).into();
+        st.set_base(path.as_ref().to_str().unwrap());
+        let storage: Rc<dyn Storage> = Rc::new(st);
 
         Ok(SBT {
             d: sbt.d,
@@ -169,25 +161,22 @@ where
         path: P,
         storage: Option<Rc<dyn Storage>>,
     ) -> Result<(), Error> {
+        let ref_path = path.as_ref();
+        let mut basename = ref_path.file_name().unwrap().to_str().unwrap().to_owned();
+        if basename.ends_with(".sbt.json") {
+            basename = basename.replace(".sbt.json", "");
+        }
+        let location = ref_path.parent().unwrap();
+
         let storage = match storage {
             Some(s) => s,
             None => {
-                // TODO: set up new default storage
-                let basename = path.as_ref().to_path_buf();
-                if basename.ends_with(".sbt.json") {}
-
-                // TODO: file_name(), remove extension
-
-                let location = path.as_ref().parent().unwrap();
-                let subdir = format!(".sbt.{}", basename.to_str().unwrap());
+                let subdir = format!(".sbt.{}", basename);
                 Rc::new(FSStorage::new(location.to_str().unwrap(), &subdir))
             }
         };
 
-        let mut args: HashMap<String, String> = HashMap::default();
-        //TODO: read this from storage
-        args.insert("path".into(), ".sbt".into());
-
+        let args = storage.args();
         let storage_info = StorageInfo {
             backend: "FSStorage".into(),
             args,
@@ -267,14 +256,12 @@ where
                 visited.insert(pos);
 
                 if let Some(node) = self.nodes.get(&pos) {
-                    //dbg!((node, sig, node.similarity(sig)));
                     if search_fn(&node, sig, threshold) {
                         for c in self.children(pos) {
                             queue.push(c);
                         }
                     }
                 } else if let Some(leaf) = self.leaves.get(&pos) {
-                    //dbg!((leaf, sig, leaf.similarity(sig)));
                     if search_fn(leaf, sig, threshold) {
                         matches.push(leaf);
                     }
