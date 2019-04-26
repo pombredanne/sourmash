@@ -7,7 +7,7 @@ use log::info;
 use ocf::{get_input, get_output, CompressionFormat};
 
 use crate::index::storage::{FSStorage, Storage};
-use crate::index::{Comparable, Dataset, Index, UKHSTree};
+use crate::index::{Comparable, Dataset, Index, UKHSTree, MHBT};
 use crate::signature::{Signature, SigsTrait};
 use crate::sketch::ukhs::{FlatUKHS, UKHSTrait, UniqueUKHS};
 
@@ -64,6 +64,17 @@ pub fn draff_search(index: &str, query: &str) -> Result<(), Error> {
     for found in index.search(&dataset, 0.9, false)? {
         println!("{:.2}: {:?}", dataset.similarity(found), found);
     }
+
+    Ok(())
+}
+
+pub fn prepare(index_path: &str) -> Result<(), Error> {
+    let mut index = MHBT::from_path(index_path)?;
+
+    // TODO equivalent to fill_internal in python
+    unimplemented!();
+
+    index.save_file(index_path, None)?;
 
     Ok(())
 }

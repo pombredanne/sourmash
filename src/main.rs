@@ -13,7 +13,7 @@ use ocf::{get_output, CompressionFormat};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use sourmash::cmd::{draff_compare, draff_index, draff_search, draff_signature};
+use sourmash::cmd::{draff_compare, draff_index, draff_search, draff_signature, prepare};
 use sourmash::index::sbt::scaffold;
 use sourmash::index::search::{
     search_minhashes, search_minhashes_containment, search_minhashes_find_best,
@@ -235,6 +235,12 @@ fn main() -> Result<(), ExitFailure> {
                 .unwrap();
 
             draff_compare(inputs)?;
+        }
+        Some("prepare") => {
+            let cmd = m.subcommand_matches("prepare").unwrap();
+            let index: &str = cmd.value_of("index").unwrap();
+
+            prepare(index)?;
         }
         Some("index") => {
             let cmd = m.subcommand_matches("index").unwrap();

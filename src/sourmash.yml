@@ -150,6 +150,13 @@ subcommands:
             - databases:
                 help: "signatures/SBTs to search"
                 multiple: true
+    - prepare:
+        about: prepare an index
+        settings:
+            - ArgRequiredElseHelp
+        args:
+            - index:
+                help: SBT index
 
 # groups:
 #  - protein:
