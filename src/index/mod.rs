@@ -29,7 +29,6 @@ use crate::sketch::ukhs::{FlatUKHS, UKHSTrait};
 use crate::sketch::Sketch;
 
 pub type MHBT = SBT<Node<Nodegraph>, Dataset<Signature>>;
-
 pub type UKHSTree = SBT<Node<FlatUKHS>, Dataset<Signature>>;
 
 pub trait Index {
@@ -137,9 +136,14 @@ impl ReadData<Signature> for Dataset<Signature> {
         } else if let Some(storage) = &self.storage {
             let sig = self.data.get_or_create(|| {
                 let raw = storage.load(&self.filename).unwrap();
-                let sigs: Vec<Signature> = serde_json::from_reader(&mut &raw[..]).unwrap();
-                // TODO: select the right sig?
-                sigs[0].to_owned()
+                let sigs: Result<Vec<Signature>, _> = serde_json::from_reader(&mut &raw[..]);
+                if let Ok(sigs) = sigs {
+                    // TODO: select the right sig?
+                    sigs[0].to_owned()
+                } else {
+                    let sig: Signature = serde_json::from_reader(&mut &raw[..]).unwrap();
+                    sig
+                }
             });
 
             Ok(sig)
@@ -179,7 +183,25 @@ impl Dataset<Signature> {
 
 impl From<Dataset<Signature>> for Signature {
     fn from(other: Dataset<Signature>) -> Signature {
-        other.data.get().unwrap().clone()
+        other.data.get().unwrap().to_owned()
+    }
+}
+
+impl From<Signature> for Dataset<Signature> {
+    fn from(other: Signature) -> Dataset<Signature> {
+        let name = other.name();
+        let filename = other.filename();
+
+        let data = Lazy::new();
+        data.get_or_create(|| other);
+
+        Dataset::builder()
+            .name(name)
+            .filename(filename)
+            .data(data)
+            .metadata("")
+            .storage(None)
+            .build()
     }
 }
 

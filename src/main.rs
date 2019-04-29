@@ -14,6 +14,7 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
 use sourmash::cmd::{draff_compare, draff_index, draff_search, draff_signature, prepare};
+use sourmash::index::linear::LinearIndex;
 use sourmash::index::sbt::scaffold;
 use sourmash::index::search::{
     search_minhashes, search_minhashes_containment, search_minhashes_find_best,
@@ -34,15 +35,18 @@ impl Query<Signature> {
 
     fn moltype(&self) -> String {
         // TODO: this might panic
-        if let Sketch::MinHash(mh) = &self.data.signatures[0] {
-            if mh.is_protein() {
-                "protein".into()
-            } else {
+        match &self.data.signatures[0] {
+            Sketch::MinHash(mh) => {
+                if mh.is_protein() {
+                    "protein".into()
+                } else {
+                    "DNA".into()
+                }
+            }
+            Sketch::UKHS(_) => {
+                // TODO: draff only supports dna for now
                 "DNA".into()
             }
-        } else {
-            // TODO what if this is not a minhash?
-            unimplemented!();
         }
     }
 
@@ -83,8 +87,57 @@ fn load_query_signature(
 }
 
 struct Database {
-    data: MHBT,
+    data: Indices,
     path: String,
+}
+
+enum Indices {
+    MHBT(MHBT),
+    LinearIndex(LinearIndex<Dataset<Signature>>),
+}
+
+impl Index for Database {
+    type Item = Dataset<Signature>;
+
+    fn find<F>(
+        &self,
+        search_fn: F,
+        sig: &Self::Item,
+        threshold: f64,
+    ) -> Result<Vec<&Self::Item>, Error>
+    where
+        F: Fn(&dyn Comparable<Self::Item>, &Self::Item, f64) -> bool,
+    {
+        match &self.data {
+            Indices::MHBT(data) => data.find(search_fn, sig, threshold),
+            Indices::LinearIndex(data) => data.find(search_fn, sig, threshold),
+        }
+    }
+
+    fn insert(&mut self, node: &Self::Item) -> Result<(), Error> {
+        match &mut self.data {
+            Indices::MHBT(data) => data.insert(node),
+            Indices::LinearIndex(data) => data.insert(node),
+        }
+    }
+
+    fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+        match &self.data {
+            Indices::MHBT(data) => data.save(path),
+            Indices::LinearIndex(data) => data.save(path),
+        }
+    }
+
+    fn load<P: AsRef<Path>>(path: P) -> Result<(), Error> {
+        unimplemented!();
+    }
+
+    fn datasets(&self) -> Vec<Self::Item> {
+        match &self.data {
+            Indices::MHBT(data) => data.datasets(),
+            Indices::LinearIndex(data) => data.datasets(),
+        }
+    }
 }
 
 fn load_sbts_and_sigs(
@@ -109,10 +162,19 @@ fn load_sbts_and_sigs(
         if let Ok(data) = MHBT::from_path(path) {
             // TODO: check compatible
             dbs.push(Database {
-                data,
+                data: Indices::MHBT(data),
                 path: String::from(*path),
             });
             info!("loaded SBT {}", path);
+            n_databases += 1;
+            continue;
+        } else if let Ok(data) = LinearIndex::<Dataset<Signature>>::from_path(path) {
+            // TODO: check compatible
+            dbs.push(Database {
+                data: Indices::LinearIndex(data),
+                path: String::from(*path),
+            });
+            info!("loaded LinearIndex {}", path);
             n_databases += 1;
             continue;
         }
@@ -179,7 +241,7 @@ fn search_databases(
     // TODO: set up scaled for DB and query
 
     for db in databases {
-        let matches = db.data.find(search_fn, &query_leaf, threshold).unwrap();
+        let matches = db.find(search_fn, &query_leaf, threshold).unwrap();
         for dataset in matches.into_iter() {
             let similarity = query_leaf.similarity(dataset);
 
@@ -199,7 +261,7 @@ fn search_databases(
 }
 
 fn main() -> Result<(), ExitFailure> {
-    setup_panic!();
+    //setup_panic!();
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 

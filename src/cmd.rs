@@ -3,30 +3,44 @@ use std::rc::Rc;
 
 use bio::io::fastx;
 use failure::Error;
+use lazy_init::Lazy;
 use log::info;
 use ocf::{get_input, get_output, CompressionFormat};
 
+use crate::index::linear::LinearIndex;
 use crate::index::storage::{FSStorage, Storage};
 use crate::index::{Comparable, Dataset, Index, UKHSTree, MHBT};
 use crate::signature::{Signature, SigsTrait};
 use crate::sketch::ukhs::{FlatUKHS, UKHSTrait, UniqueUKHS};
+use crate::sketch::Sketch;
 
 pub fn draff_index(sig_files: Vec<&str>, outfile: &str) -> Result<(), Error> {
     let storage: Rc<dyn Storage> = Rc::new(
         FSStorage::new(".".into(), ".draff".into()), // TODO: use outfile
     );
 
-    let mut index = UKHSTree::builder().storage(Rc::clone(&storage)).build();
+    //let mut index = UKHSTree::builder().storage(Rc::clone(&storage)).build();
+    let mut index = LinearIndex::<Dataset<Signature>>::builder()
+        .storage(Rc::clone(&storage))
+        .build();
 
     for filename in sig_files {
         // TODO: check for stdin? can also use get_input()?
 
-        let sig = FlatUKHS::load(&filename)?;
+        let ukhs_sig = FlatUKHS::load(&filename)?;
 
-        let mut dataset: Dataset<Signature> = sig.into();
-        // TODO: properly set name, filename, storage for the dataset
-        dataset.filename = String::from(Path::new(filename).file_name().unwrap().to_str().unwrap());
-        dataset.storage = Some(Rc::clone(&storage));
+        let path = Path::new(filename);
+        let basename = path.file_name().unwrap().to_str().unwrap().to_owned();
+
+        let sig = Signature::builder()
+            .hash_function("nthash") // TODO: spec!
+            .class("draff_signature") // TODO: spec!
+            .name(Some(basename.to_owned()))
+            .filename(Some(basename.to_owned()))
+            .signatures(vec![Sketch::UKHS(ukhs_sig)])
+            .build();
+
+        let dataset = sig.into();
 
         index.insert(&dataset)?;
     }
@@ -44,7 +58,10 @@ pub fn draff_compare(sigs: Vec<&str>) -> Result<(), Error> {
 
     for (i, sig1) in loaded_sigs.iter().enumerate() {
         for (j, sig2) in loaded_sigs.iter().enumerate() {
-            dists[i][j] = 1. - sig1.distance(sig2);
+            if i >= j {
+                dists[i][j] = 1. - sig1.distance(sig2);
+                dists[j][i] = dists[i][j];
+            }
         }
     }
 
@@ -58,8 +75,17 @@ pub fn draff_compare(sigs: Vec<&str>) -> Result<(), Error> {
 pub fn draff_search(index: &str, query: &str) -> Result<(), Error> {
     let index = UKHSTree::from_path(index)?;
 
-    let sig = FlatUKHS::load(query)?;
-    let dataset: Dataset<Signature> = sig.into();
+    let ukhs_sig = FlatUKHS::load(&query)?;
+
+    let sig = Signature::builder()
+        .hash_function("nthash") // TODO: spec!
+        .class("draff_signature") // TODO: spec!
+        .name(Some(query.to_owned()))
+        .filename(Some(query.to_owned()))
+        .signatures(vec![Sketch::UKHS(ukhs_sig)])
+        .build();
+
+    let dataset = sig.into();
 
     for found in index.search(&dataset, 0.9, false)? {
         println!("{:.2}: {:?}", dataset.similarity(found), found);

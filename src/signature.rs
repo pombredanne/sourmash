@@ -129,11 +129,9 @@ impl Signature {
 
     pub fn md5sum(&self) -> String {
         if self.signatures.len() == 1 {
-            if let Sketch::MinHash(mh) = &self.signatures[0] {
-                mh.md5sum()
-            } else {
-                // TODO: sig is not a minhash, what to do?
-                unimplemented!()
+            match &self.signatures[0] {
+                Sketch::MinHash(mh) => mh.md5sum(),
+                Sketch::UKHS(hs) => hs.md5sum(),
             }
         } else {
             // TODO: select the correct signature
@@ -181,23 +179,37 @@ impl Signature {
                 .signatures
                 .into_iter()
                 .filter(|sig| {
-                    if let Sketch::MinHash(mh) = sig {
-                        if ksize == 0 || ksize == mh.ksize() as usize {
-                            match moltype {
-                                Some(x) => {
-                                    if (x.to_lowercase() == "dna" && !mh.is_protein())
-                                        || (x.to_lowercase() == "protein" && mh.is_protein())
-                                    {
-                                        return true;
+                    match sig {
+                        Sketch::MinHash(mh) => {
+                            if ksize == 0 || ksize == mh.ksize() as usize {
+                                match moltype {
+                                    Some(x) => {
+                                        if (x.to_lowercase() == "dna" && !mh.is_protein())
+                                            || (x.to_lowercase() == "protein" && mh.is_protein())
+                                        {
+                                            return true;
+                                        }
                                     }
-                                }
-                                None => return true,
+                                    None => unimplemented!(),
+                                };
                             };
-                        };
-                    } else {
-                        // TODO: what if it is not a minhash?
-                        unimplemented!();
-                    }
+                        }
+                        Sketch::UKHS(hs) => {
+                            if ksize == 0 || ksize == hs.ksize() as usize {
+                                match moltype {
+                                    Some(x) => {
+                                        if x.to_lowercase() == "dna" {
+                                            return true;
+                                        } else {
+                                            // TODO: draff only supports dna for now
+                                            unimplemented!()
+                                        }
+                                    }
+                                    None => unimplemented!(),
+                                };
+                            }
+                        }
+                    };
                     false
                 })
                 .collect();

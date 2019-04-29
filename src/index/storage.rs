@@ -99,15 +99,15 @@ impl Storage for FSStorage {
             return Err(StorageError::EmptyPathError.into());
         }
 
-        let path = self.fullpath.join(path);
+        let fpath = self.fullpath.join(path);
         DirBuilder::new()
             .recursive(true)
-            .create(path.parent().unwrap())?;
+            .create(fpath.parent().unwrap())?;
 
-        let file = File::create(&path)?;
+        let file = File::create(&fpath)?;
         let mut buf_writer = BufWriter::new(file);
         buf_writer.write(content)?;
-        Ok(path.to_str().unwrap().into())
+        Ok(path.into())
     }
 
     fn load(&self, path: &str) -> Result<Vec<u8>, Error> {

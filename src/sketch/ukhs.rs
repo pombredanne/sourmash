@@ -35,6 +35,19 @@ impl<'a, T> UKHS<T> {
     }
 }
 
+impl UKHS<u64> {
+    pub fn md5sum(&self) -> String {
+        // TODO: review this!
+        let mut md5_ctx = md5::Context::new();
+        md5_ctx.consume(self.ukhs.k().to_string());
+        self.buckets
+            .iter()
+            .map(|x| md5_ctx.consume(x.to_string()))
+            .count();
+        format!("{:x}", md5_ctx.compute())
+    }
+}
+
 impl<T> std::fmt::Debug for UKHS<T>
 where
     T: std::marker::Sync + std::fmt::Debug,
@@ -57,32 +70,6 @@ where
 {
     fn default() -> Self {
         UKHS::new(7, 21).unwrap()
-    }
-}
-
-impl From<FlatUKHS> for Dataset<Signature> {
-    fn from(other: FlatUKHS) -> Dataset<Signature> {
-        let data = Lazy::new();
-        data.get_or_create(|| other.into());
-
-        Dataset::builder()
-            .data(Rc::new(data))
-            .filename("")
-            .name("")
-            .metadata("")
-            .storage(None)
-            .build()
-    }
-}
-
-impl From<FlatUKHS> for Signature {
-    fn from(other: FlatUKHS) -> Signature {
-        Signature::builder()
-            .hash_function("nthash") // TODO: spec!
-            .class("draff_signature") // TODO: spec!
-            .name(Some("draff_file".into())) // TODO: spec!
-            .signatures(vec![Sketch::UKHS(other)])
-            .build()
     }
 }
 
@@ -172,7 +159,6 @@ impl UKHSTrait for UKHS<u64> {
     }
 
     fn distance(&self, other: &Self) -> f64 {
-        /*
         // TODO: don't iterate twice...
         let prod: f64 = self
             .buckets
@@ -196,8 +182,8 @@ impl UKHSTrait for UKHS<u64> {
         //
         // this is the cosine distance as defined by scipy
         //1. - d
-        */
 
+        /*
         // This is the weighted Jaccard distance
         // TODO: don't iterate twice...
         let mins: u64 = self
@@ -214,6 +200,7 @@ impl UKHSTrait for UKHS<u64> {
             .sum();
 
         1. - (mins as f64 / maxs as f64)
+        */
     }
 
     fn to_writer<W>(&self, writer: &mut W) -> Result<(), Error>
@@ -530,6 +517,36 @@ where
             && self.ukhs.k() == self.ukhs.k()
     }
 }
+
+// Removed this for now, because calling .into() in these doesn't
+// transfer all the important information...
+/*
+impl From<FlatUKHS> for Dataset<Signature> {
+    fn from(other: FlatUKHS) -> Dataset<Signature> {
+        let data = Lazy::new();
+        data.get_or_create(|| other.into());
+
+        Dataset::builder()
+            .data(Rc::new(data))
+            .filename("")
+            .name("")
+            .metadata("")
+            .storage(None)
+            .build()
+    }
+}
+
+impl From<FlatUKHS> for Signature {
+    fn from(other: FlatUKHS) -> Signature {
+        Signature::builder()
+            .hash_function("nthash") // TODO: spec!
+            .class("draff_signature") // TODO: spec!
+            .name(Some("draff_file".into())) // TODO: spec!
+            .signatures(vec![Sketch::UKHS(other)])
+            .build()
+    }
+}
+*/
 
 #[cfg(test)]
 mod test {

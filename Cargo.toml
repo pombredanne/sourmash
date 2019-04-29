@@ -51,7 +51,7 @@ serde = "1.0"
 serde_derive = "~1.0.58"
 serde_json = "1.0.2"
 ukhs = "0.3.4"
-bio = { path = "../rust-bio" }
+bio = { git = "https://github.com/luizirber/rust-bio", branch = "feature/fastx_reader" }
 primal = "0.2.3"
 pdatastructs = "0.5.0"
 itertools = "0.8.0"
