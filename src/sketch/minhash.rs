@@ -571,89 +571,73 @@ fn revcomp(seq: &[u8]) -> Vec<u8> {
 
 lazy_static! {
     static ref CODONTABLE: HashMap<&'static str, u8> = {
-        let mut m = HashMap::new();
+      [
+        // F
+        ("TTT", b'F'), ("TTC", b'F'),
+        // L
+        ("TTA", b'L'), ("TTG", b'L'),
 
-        m.insert("TTT", b'F');
-        m.insert("TTC", b'F');
-        m.insert("TTA", b'L');
-        m.insert("TTG", b'L');
+        // S
+        ("TCT", b'S'), ("TCC", b'S'), ("TCA", b'S'), ("TCG", b'S'),
 
-        m.insert("TCT", b'S');
-        m.insert("TCC", b'S');
-        m.insert("TCA", b'S');
-        m.insert("TCG", b'S');
+        // Y
+        ("TAT", b'Y'), ("TAC", b'Y'),
+        // *
+        ("TAA", b'*'), ("TAG", b'*'),
 
-        m.insert("TAT", b'Y');
-        m.insert("TAC", b'Y');
-        m.insert("TAA", b'*');
-        m.insert("TAG", b'*');
+        // *
+        ("TGA", b'*'),
+        // C
+        ("TGT", b'C'), ("TGC", b'C'),
+        // W
+        ("TGG", b'W'),
 
-        m.insert("TGT", b'C');
-        m.insert("TGC", b'C');
-        m.insert("TGA", b'*');
-        m.insert("TGG", b'W');
+        // L
+        ("CTT", b'L'), ("CTC", b'L'), ("CTA", b'L'), ("CTG", b'L'),
 
-        m.insert("CTT", b'L');
-        m.insert("CTC", b'L');
-        m.insert("CTA", b'L');
-        m.insert("CTG", b'L');
+        // P
+        ("CCT", b'P'), ("CCC", b'P'), ("CCA", b'P'), ("CCG", b'P'),
 
-        m.insert("CCT", b'P');
-        m.insert("CCC", b'P');
-        m.insert("CCA", b'P');
-        m.insert("CCG", b'P');
+        // H
+        ("CAT", b'H'), ("CAC", b'H'),
+        // Q
+        ("CAA", b'Q'), ("CAG", b'Q'),
 
-        m.insert("CAT", b'H');
-        m.insert("CAC", b'H');
-        m.insert("CAA", b'Q');
-        m.insert("CAG", b'Q');
+        // R
+        ("CGT", b'R'), ("CGC", b'R'), ("CGA", b'R'), ("CGG", b'R'),
 
-        m.insert("CGT", b'R');
-        m.insert("CGC", b'R');
-        m.insert("CGA", b'R');
-        m.insert("CGG", b'R');
+        // I
+        ("ATT", b'I'), ("ATC", b'I'), ("ATA", b'I'),
+        // M
+        ("ATG", b'M'),
 
-        m.insert("ATT", b'I');
-        m.insert("ATC", b'I');
-        m.insert("ATA", b'I');
-        m.insert("ATG", b'M');
+        // T
+        ("ACT", b'T'), ("ACC", b'T'), ("ACA", b'T'), ("ACG", b'T'),
 
-        m.insert("ACT", b'T');
-        m.insert("ACC", b'T');
-        m.insert("ACA", b'T');
-        m.insert("ACG", b'T');
+        // N
+        ("AAT", b'N'), ("AAC", b'N'),
+        // K
+        ("AAA", b'K'), ("AAG", b'K'),
 
-        m.insert("AAT", b'N');
-        m.insert("AAC", b'N');
-        m.insert("AAA", b'K');
-        m.insert("AAG", b'K');
+        // S
+        ("AGT", b'S'), ("AGC", b'S'),
+        // R
+        ("AGA", b'R'), ("AGG", b'R'),
 
-        m.insert("AGT", b'S');
-        m.insert("AGC", b'S');
-        m.insert("AGA", b'R');
-        m.insert("AGG", b'R');
+        // V
+        ("GTT", b'V'), ("GTC", b'V'), ("GTA", b'V'), ("GTG", b'V'),
 
-        m.insert("GTT", b'V');
-        m.insert("GTC", b'V');
-        m.insert("GTA", b'V');
-        m.insert("GTG", b'V');
+        // A
+        ("GCT", b'A'), ("GCC", b'A'), ("GCA", b'A'), ("GCG", b'A'),
 
-        m.insert("GCT", b'A');
-        m.insert("GCC", b'A');
-        m.insert("GCA", b'A');
-        m.insert("GCG", b'A');
+        // D
+        ("GAT", b'D'), ("GAC", b'D'),
+        // E
+        ("GAA", b'E'), ("GAG", b'E'),
 
-        m.insert("GAT", b'D');
-        m.insert("GAC", b'D');
-        m.insert("GAA", b'E');
-        m.insert("GAG", b'E');
-
-        m.insert("GGT", b'G');
-        m.insert("GGC", b'G');
-        m.insert("GGA", b'G');
-        m.insert("GGG", b'G');
-
-        m
+        // G
+        ("GGT", b'G'), ("GGC", b'G'), ("GGA", b'G'), ("GGG", b'G'),
+        ].into_iter().cloned().collect()
     };
 }
 
