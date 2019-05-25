@@ -13,7 +13,9 @@ use ocf::{get_output, CompressionFormat};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use sourmash::cmd::{draff_compare, draff_index, draff_search, draff_signature, prepare};
+use sourmash::cmd::{
+    count_unique, draff_compare, draff_index, draff_search, draff_signature, prepare,
+};
 use sourmash::index::linear::LinearIndex;
 use sourmash::index::sbt::scaffold;
 use sourmash::index::search::{
@@ -325,6 +327,13 @@ fn main() -> Result<(), ExitFailure> {
             new_sbt.save_file("test", None)?;
 
             assert_eq!(new_sbt.datasets().len(), sbt.datasets().len());
+        }
+        Some("count_unique") => {
+            let cmd = m.subcommand_matches("count_unique").unwrap();
+
+            let index: &str = cmd.value_of("index").unwrap();
+
+            count_unique(index)?;
         }
         Some("search") => {
             let cmd = m.subcommand_matches("search").unwrap();

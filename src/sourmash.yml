@@ -64,6 +64,14 @@ subcommands:
             - query:
                 help: draff signature to search
                 required: true
+    - count_unique:
+        about: count unique k-mers in an Index
+        settings:
+            - ArgRequiredElseHelp
+        args:
+            - index:
+                help: index to search
+                required: true
     - scaffold:
         about: create SBT scaffold
         settings:

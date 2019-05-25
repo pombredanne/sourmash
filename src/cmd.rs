@@ -3,9 +3,9 @@ use std::rc::Rc;
 
 use bio::io::fastx;
 use failure::Error;
-use lazy_init::Lazy;
 use log::info;
 use ocf::{get_input, get_output, CompressionFormat};
+use pdatastructs::hyperloglog::HyperLogLog;
 
 use crate::index::linear::LinearIndex;
 use crate::index::storage::{FSStorage, Storage};
@@ -147,6 +147,33 @@ pub fn draff_signature(files: Vec<&str>, k: usize, w: usize) -> Result<(), Error
         flat.to_writer(&mut output)?
     }
     info!("Done.");
+
+    Ok(())
+}
+
+pub fn count_unique(index_path: &str) -> Result<(), Error> {
+    let index = MHBT::from_path(index_path)?;
+
+    info!("Loaded index: {}", index_path);
+
+    let mut hll = HyperLogLog::new(16);
+
+    let mut total_hashes = 0u64;
+
+    for (n, dataset) in index.datasets().iter().enumerate() {
+        if n % 1000 == 0 {
+            info!("Processed {} datasets", n);
+            info!("Unique hashes in {}: {}", index_path, hll.count());
+            info!("Total hashes in {}: {}", index_path, total_hashes);
+        };
+        for hash in dataset.mins() {
+            hll.add(&hash);
+            total_hashes += 1;
+        }
+    }
+
+    info!("Unique k-mers in {}: {}", index_path, hll.count());
+    info!("Total hashes in {}: {}", index_path, total_hashes);
 
     Ok(())
 }
